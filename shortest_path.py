@@ -1,9 +1,10 @@
 import heapq
+# 파이썬 표준 라이브러리 중 하나인 heapq 모듈을 사용하여 다익스트라 최단 경로 알고리즘 구현
 
 def dijkstra(graph, start, end):
     distances = {node: float('inf') for node in graph}
     previous_nodes = {node: None for node in graph}
-    distances[start] = 0
+    distances[start] = 0 # 시작 노드 0으로 설정
     queue = [(0, start)]
 
     while queue:
