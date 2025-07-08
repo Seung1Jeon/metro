@@ -7,4 +7,4 @@
 
 - ⓒ 공공데이터포털, 제공기관: **대구교통공사**
 - 데이터 라이선스: **공공누리 제1유형**
-  [공공누리 이용약관 보기](https://www.data.go.kr/cmm/cmm/termsOfUse.do)
+  [공공누리 이용약관 보기](https://www.data.go.kr/ugs/selectPortalPolicyView.do)
