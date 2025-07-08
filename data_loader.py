@@ -31,9 +31,9 @@ def build_graph_from_csv(file_path, encoding='cp949'):
 def load_total_graph():
     # 공공데이터포털 대구지하철 구간정보
     files = [
-        '대구교통공사_1호선 역 구간정보_20241231.csv',
-        '대구교통공사_2호선 역 구간정보_20241231.csv',
-        '대구교통공사_3호선 역 구간정보_20241231.csv'
+        'data/대구교통공사_1호선 역 구간정보_20241231.csv',
+        'data/대구교통공사_2호선 역 구간정보_20241231.csv',
+        'data/대구교통공사_3호선 역 구간정보_20241231.csv'
     ]
 
     total_graph = defaultdict(dict)
