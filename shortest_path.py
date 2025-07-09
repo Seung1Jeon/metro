@@ -1,30 +1,53 @@
 import heapq
 # 파이썬 표준 라이브러리 중 하나인 heapq 모듈을 사용하여 다익스트라 최단 경로 알고리즘 구현
 
-def dijkstra(graph, start, end):
-    distances = {node: float('inf') for node in graph}
-    previous_nodes = {node: None for node in graph}
-    distances[start] = 0 # 시작 노드 0으로 설정
-    queue = [(0, start)]
+import heapq
+
+def dijkstra(graph: dict, start: str, end: str) -> tuple[float, list[str]]:
+    """
+    다익스트라 알고리즘 (거리 기반 또는 시간 기반 공통)
+
+    Parameters:
+    - graph: 인접 리스트 형태의 그래프 (dict[str, dict[str, float]])
+    - start: 출발역 이름
+    - end: 도착역 이름
+
+    Returns:
+    - total_cost: 총 거리 또는 시간 (float)
+    - path: 최단 경로에 해당하는 역 이름 리스트
+    """
+    queue = [(0, start, [])]
+    visited = set()
 
     while queue:
-        current_distance, current_node = heapq.heappop(queue)
+        cost, node, path = heapq.heappop(queue)
 
-        if current_distance > distances[current_node]:
+        if node in visited:
             continue
+        visited.add(node)
+        path = path + [node]
 
-        for neighbor, weight in graph[current_node].items():
-            distance = current_distance + weight
-            if distance < distances[neighbor]:
-                distances[neighbor] = distance
-                previous_nodes[neighbor] = current_node
-                heapq.heappush(queue, (distance, neighbor))
+        if node == end:
+            return cost, path
 
-    # 경로 추적
-    path = []
-    current = end
-    while current:
-        path.insert(0, current)
-        current = previous_nodes[current]
+        for neighbor, weight in graph.get(node, {}).items():
+            if neighbor not in visited:
+                heapq.heappush(queue, (cost + weight, neighbor, path))
 
-    return distances[end], path
+    return float('inf'), []
+
+
+# 거리 기반 경로 탐색 함수
+def dijkstra_distance(graph, start, end):
+    """
+    거리 기반 다익스트라: 거리 단위는 km
+    """
+    return dijkstra(graph, start, end)
+
+
+# 시간 기반 경로 탐색 함수
+def dijkstra_time(graph_time, start, end):
+    """
+    시간 기반 다익스트라: 시간 단위는 초
+    """
+    return dijkstra(graph_time, start, end)
