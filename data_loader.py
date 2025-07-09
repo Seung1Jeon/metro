@@ -6,6 +6,7 @@ from collections import defaultdict
 import re
 # 정규 표현식을 사용하기 위한 파이썬 내장 모듈인 re 모듈 사용
 import os
+# 파일 생성, 수정, 삭제, 디렉토리 작업을 수행하기 위한 os 모듈
 
 # csv 파일 내의 환승역 명칭(환승역+번호)을 통일하고 부역명(괄호 부기)을 제거하기 위한 함수
 def clean_station_name(name: str) -> str:
@@ -83,7 +84,7 @@ def process_timetable_csv(file_path: str, include_stop_time: bool = False) -> pd
     df_long['이전_요일'] = df_long['요일'].shift(1)
     df_long['이전_방향'] = df_long['방향'].shift(1)
 
-    # 이동 시간 조건: 다음 역의 도착 시간에서 이전 역의 출발 시각을 뺸 값
+    # 이동 시간 조건
     move_cond = (
         (df_long['구분'] == '출발') &
         (df_long['다음_구분'] == '도착') &
@@ -93,11 +94,11 @@ def process_timetable_csv(file_path: str, include_stop_time: bool = False) -> pd
         (df_long['역명'] != df_long['다음_역명'])
     )
 
-    # 이동 시간
+    # 이동 시간: 다음 역의 도착 시간에서 이전 역의 출발 시각을 뺸 값
     df_long['이동_시간'] = (df_long['다음_시각'] - df_long['시각']).dt.total_seconds()
 
     if include_stop_time:
-        # 정차 시간 조건: 동일 역명의 도착 시각에서 동일 역명의 출발 시각 사이의 값
+        # 정차 시간 조건
         stop_cond = (
             (df_long['구분'] == '출발') &
             (df_long['이전_구분'] == '도착') &
@@ -107,7 +108,7 @@ def process_timetable_csv(file_path: str, include_stop_time: bool = False) -> pd
             (df_long['역명'] == df_long['이전_역명'])
         )
 
-        # 정차 시간
+        # 정차 시간: 동일 역명의 도착 시각에서 동일 역명의 출발 시각 사이의 값
         df_long['정차_시간'] = (df_long['시각'] - df_long['이전_시각']).dt.total_seconds()
 
         # 총 소요 시간 = 이동 + 정차

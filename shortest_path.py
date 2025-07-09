@@ -1,8 +1,6 @@
 import heapq
 # 파이썬 표준 라이브러리 중 하나인 heapq 모듈을 사용하여 다익스트라 최단 경로 알고리즘 구현
 
-import heapq
-
 def dijkstra(graph: dict, start: str, end: str) -> tuple[float, list[str]]:
     """
     다익스트라 알고리즘 (거리 기반 또는 시간 기반 공통)

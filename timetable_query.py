@@ -20,9 +20,9 @@ def clean_station_name(name: str) -> str:
     return name.strip()
 
 # 지정한 역에서 특정 시간 이후에 출발하는 열차 번호의 출발 시각 반환
-def get_available_departures(station: str, time_str: str, margin_min=0):
+def get_available_departures(station: str, time_str: str, margin_min=0, limit=None):
     station = clean_station_name(station)
-    target_time = datetime.strptime(time_str, "%H:%M") + timedelta(minutes=margin_min)
+    target_time = datetime.strptime(time_str, "%H:%M:%S") + timedelta(minutes=margin_min)
     result = []
 
     for file in DATA_FILES:
@@ -58,12 +58,16 @@ def get_available_departures(station: str, time_str: str, margin_min=0):
 
         for _, row in df_filtered.iterrows():
             result.append({
-                '열차번호': row['열차번호'],
-                '출발시각': row['시각'].strftime("%H:%M:%S"),
-                '방향': row['방향'],
-                '파일': file
+            '열차번호': row['열차번호'],
+            '출발시각': row['시각'],
+            '방향': row['방향'],
+            '파일명': file
             })
 
     # 시각 기준 정렬
     result.sort(key=lambda x: x['출발시각'])
+
+    if limit:
+        result = result[:limit]
+
     return result
