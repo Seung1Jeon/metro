@@ -158,3 +158,22 @@ TRANSFER_STATIONS = {
 # 역이 환승역인지 확인하는 함수
 def is_transfer_station(station_name):
     return clean_station_name(station_name) in TRANSFER_STATIONS
+
+def load_line_station_map() -> dict:
+    files = [
+        'data/대구교통공사_1호선 역 구간정보_20241231.csv',
+        'data/대구교통공사_2호선 역 구간정보_20241231.csv',
+        'data/대구교통공사_3호선 역 구간정보_20241231.csv'
+    ]
+
+    line_map = {}
+    for file in files:
+        # 정규 표현식으로 "1호선", "2호선"만 추출
+        match = re.search(r'(\d호선)', file)
+        if match:
+            line_name = match.group(1)  # "2호선"
+            df = pd.read_csv(file, encoding='cp949')
+            stations = df['역명'].dropna().astype(str).apply(clean_station_name).tolist()
+            line_map[line_name] = stations
+
+    return line_map

@@ -20,12 +20,17 @@ def clean_station_name(name: str) -> str:
     return name.strip()
 
 # 지정한 역에서 특정 시간 이후에 출발하는 열차 번호의 출발 시각 반환
-def get_available_departures(station: str, time_str: str, margin_min=0, limit=None):
+def get_available_departures(station: str, time_str: str, line: str = None, direction: str = None, margin_min=0, limit=None):
     station = clean_station_name(station)
     target_time = datetime.strptime(time_str, "%H:%M:%S") + timedelta(minutes=margin_min)
     result = []
 
     for file in DATA_FILES:
+        if line and line not in file:
+            continue
+        if direction and f"{direction}선" not in file:
+            continue
+
         path = os.path.join(DATA_DIR, file)
         if not os.path.exists(path):
             continue
@@ -49,7 +54,6 @@ def get_available_departures(station: str, time_str: str, margin_min=0, limit=No
         df_long['시각'] = pd.to_datetime(df_long['시각'], format="%H:%M:%S", errors='coerce')
         df_long.dropna(subset=['시각'], inplace=True)
 
-        # 지정한 역, 출발 정보, 발차 시각 필터링
         df_filtered = df_long[
             (df_long['역명'] == station) &
             (df_long['구분'] == '출발') &
@@ -58,13 +62,12 @@ def get_available_departures(station: str, time_str: str, margin_min=0, limit=No
 
         for _, row in df_filtered.iterrows():
             result.append({
-            '열차번호': row['열차번호'],
-            '출발시각': row['시각'],
-            '방향': row['방향'],
-            '파일명': file
+                '열차번호': row['열차번호'],
+                '출발시각': row['시각'],
+                '방향': row['방향'],
+                '파일명': file
             })
 
-    # 시각 기준 정렬
     result.sort(key=lambda x: x['출발시각'])
 
     if limit:

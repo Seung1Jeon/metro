@@ -1,5 +1,6 @@
-from data_loader import load_distance_graph, load_time_graph, clean_station_name
+from data_loader import load_distance_graph, load_time_graph, clean_station_name, load_line_station_map
 from shortest_path import dijkstra_distance, dijkstra_time
+
 
 # 경유역 미포함
 def find_route(start_station: str, end_station: str, mode='distance'):
@@ -56,3 +57,24 @@ def find_route_with_stops(start: str, stops: list[str], mode='distance'):
             total_path.extend(path[1:])
 
     return total_cost, total_path
+
+def infer_direction(path: list[str]) -> dict[str, str]:
+    """
+    path에 기반하여 노선별 상/하행 판단
+
+    Returns:
+        {'2호선': '상', '1호선': '하', ...}
+    """
+    direction_info = {}
+    line_station_map = load_line_station_map()
+
+    for line, stations in line_station_map.items():
+        # 해당 노선에 포함된 path 내 역들만 추출
+        on_line = [station for station in path if station in stations]
+
+        if len(on_line) >= 2:
+            start_idx = stations.index(on_line[0])
+            end_idx = stations.index(on_line[-1])
+            direction_info[line] = '상' if end_idx > start_idx else '하'
+
+    return direction_info
