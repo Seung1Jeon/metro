@@ -1,6 +1,7 @@
 from path_utils import find_route, find_route_with_stops, infer_direction
 from timetable_query import get_available_departures
 from data_loader import clean_station_name, load_line_station_map
+from datetime import timedelta
 
 def find_best_route(start: str, end: str, via_stations=None, mode='distance', start_time=None):
     """
@@ -49,7 +50,14 @@ def find_best_route(start: str, end: str, via_stations=None, mode='distance', st
 
                 print(f"\n'{start}'역 기준 {start_time} 이후 가장 빠른 열차 목록 (상위 5개):")
                 for i, row in enumerate(nearest, 1):
-                    print(f"{i:02d}. 열차번호: {row['열차번호']} | 시각: {row['출발시각'].time()} | 방향: {row['방향']} | 파일: {row['파일명']}")
+                    depart_time = row['출발시각']
+
+                    if mode == 'time':
+                        # 총 소요 시간은 초 단위이므로 timedelta 사용
+                        arrival_time = depart_time + timedelta(seconds=total_cost)
+                        print(f"{i:02d}. 열차번호: {row['열차번호']} | 시각: {depart_time.time()} → 도착 예정: {arrival_time.time()} | 방향: {row['방향']} | 파일: {row['파일명']}")
+                    else:
+                        print(f"{i:02d}. 열차번호: {row['열차번호']} | 시각: {depart_time.time()} | 방향: {row['방향']} | 파일: {row['파일명']}")
             else:
                 print("방향 정보가 불충분하여 추천 열차 필터링을 건너뜁니다.")
 
