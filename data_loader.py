@@ -177,3 +177,31 @@ def load_line_station_map() -> dict:
             line_map[line_name] = stations
 
     return line_map
+
+def load_timetable_data():
+    """
+    각 노선별 상/하행 시각표를 불러와 (노선, 방향) 키로 구성된 딕셔너리 반환
+    예: { ('1호선', '상행'): df1, ('1호선', '하행'): df2, ... }
+    """
+    base_path = "./data"  # CSV 파일들이 위치한 폴더
+
+    timetable_files = {
+        ('1호선', '상행'): "대구교통공사_1호선 열차시각표(상선)_20241007.csv",
+        ('1호선', '하행'): "대구교통공사_1호선 열차시각표(하선)_20241007.csv",
+        ('2호선', '상행'): "대구교통공사_2호선 열차시각표(상선)_20241010.csv",
+        ('2호선', '하행'): "대구교통공사_2호선 열차시각표(하선)_20241010.csv",
+        ('3호선', '상행'): "대구교통공사_3호선 열차시각표(상선)_20241007.csv",
+        ('3호선', '하행'): "대구교통공사_3호선 열차시각표(하선)_20241007.csv",
+    }
+
+    timetable_data = {}
+
+    for (line, direction), filename in timetable_files.items():
+        file_path = os.path.join(base_path, filename)
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path)
+            timetable_data[(line, direction)] = df
+        else:
+            print(f"[경고] 시각표 파일 누락: {file_path}")
+
+    return timetable_data
