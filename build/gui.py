@@ -61,7 +61,7 @@ class MainPage(tk.Frame):
         canvas.place(x=0, y=0)
 
         # input-search.png + 텍스트
-        input_search_img = Image.open("images/input-search.png").resize((437, 48))
+        input_search_img = Image.open("build/images/input-search.png").resize((437, 48))
         draw = ImageDraw.Draw(input_search_img)
         try:
             font = ImageFont.truetype(IMG_FONT_PATH, 18)
@@ -77,7 +77,7 @@ class MainPage(tk.Frame):
         canvas.create_image(22, 13, anchor="nw", image=self.input_search_img_tk)
 
         # location-search.png
-        location_search_img = Image.open("images/location-search.png").resize((48, 48))
+        location_search_img = Image.open("build/images/location-search.png").resize((48, 48))
         self.location_search_img_tk = ImageTk.PhotoImage(location_search_img)
         location_search_img_id = canvas.create_image(469, 13, anchor="nw", image=self.location_search_img_tk)
         def go_to_second(event=None):
@@ -85,7 +85,7 @@ class MainPage(tk.Frame):
         canvas.tag_bind(location_search_img_id, '<Button-1>', go_to_second)
 
         # footer
-        footer_img = Image.open("images/footer.png").resize((540, 46))
+        footer_img = Image.open("build/images/footer.png").resize((540, 46))
         self.footer_img_tk = ImageTk.PhotoImage(footer_img)
         canvas.create_image(0, 914, anchor="nw", image=self.footer_img_tk)
 
@@ -97,7 +97,7 @@ class MainPage(tk.Frame):
         h_scroll = tk.Scrollbar(img_frame, orient="horizontal", command=img_canvas.xview)
         h_scroll.pack(side="bottom", fill="x")
         img_canvas.configure(xscrollcommand=h_scroll.set)
-        orig_img = Image.open("images/main.png")
+        orig_img = Image.open("build/images/main.png")
         img_w, img_h = 897, 845
         self.cur_scale = 1.0
         img = orig_img.resize((img_w, img_h))
@@ -260,14 +260,14 @@ class SecondPage(tk.Frame):
         self.canvas = tk.Canvas(self, bg="#FFFFFF", height=960, width=540, bd=0, highlightthickness=0, relief="ridge")
         self.canvas.place(x=0, y=0)
         self.canvas.create_rectangle(0.0, 0.0, 540.0, 128.0, fill="#6A66FF", outline="")
-        self.input_origin_img_tk = ImageTk.PhotoImage(Image.open("images/input-origin.png").resize((int(515.0-25.0), int(52.0-23.0))))
+        self.input_origin_img_tk = ImageTk.PhotoImage(Image.open("build/images/input-origin.png").resize((int(515.0-25.0), int(52.0-23.0))))
         input_origin_img_id = self.canvas.create_image(25.0, 23.0, anchor="nw", image=self.input_origin_img_tk)
-        self.input_destination_img_tk = ImageTk.PhotoImage(Image.open("images/input-destination.png").resize((int(515.0-25.0), int(84.0-55.0))))
+        self.input_destination_img_tk = ImageTk.PhotoImage(Image.open("build/images/input-destination.png").resize((int(515.0-25.0), int(84.0-55.0))))
         input_destination_img_id = self.canvas.create_image(25.0, 55.0, anchor="nw", image=self.input_destination_img_tk)
-        self.footer2_img_tk = ImageTk.PhotoImage(Image.open("images/footer2.png").resize((540, 67)))
+        self.footer2_img_tk = ImageTk.PhotoImage(Image.open("build/images/footer2.png").resize((540, 67)))
         self.canvas.create_image(0, 893, anchor="nw", image=self.footer2_img_tk)
         self.canvas.create_text(15.0, 98.0, anchor="nw", text="즐겨찾기", fill="#FFFFFF", font=("Malgun Gothic", 14 * -1))
-        self.fav_icon_img_tk = ImageTk.PhotoImage(Image.open("images/subway-icon.png").resize((14, 15)))
+        self.fav_icon_img_tk = ImageTk.PhotoImage(Image.open("build/images/subway-icon.png").resize((14, 15)))
         self.fav_items = []  # 즐겨찾기 캔버스 아이템 id 리스트
         self.departure_text_id = self.canvas.create_text(33.0, 29.0, anchor="nw", text="출발지 입력", fill="#FFFFFF", font=("Malgun Gothic", 14 * -1))
         self.arrival_text_id = self.canvas.create_text(33.0, 61.0, anchor="nw", text="도착지 입력", fill="#FFFFFF", font=("Malgun Gothic", 14 * -1))
@@ -304,13 +304,13 @@ class SecondPage(tk.Frame):
         self.recent_y_start = 186
         self.recent_items = []  # 캔버스 아이템 id 리스트
         # search-icon.png 로드
-        search_icon_img = Image.open("images/search-icon.png").resize((16, 16))
+        search_icon_img = Image.open("build/images/search-icon.png").resize((16, 16))
         self.search_icon_img_tk = ImageTk.PhotoImage(search_icon_img)
         # 히스토리 삭제 텍스트 추가 (초기 y좌표는 최근검색 리스트 렌더링 후에 위치시킴)
         self.history_delete_id = None
         self.render_recent_searches()
         # 닫기(x) 아이콘 추가 (오른쪽 상단)
-        x_icon_img = Image.open("images/x-icon.png").resize((10, 10))
+        x_icon_img = Image.open("build/images/x-icon.png").resize((10, 10))
         self.x_icon_img_tk = ImageTk.PhotoImage(x_icon_img)
         x_icon_id = self.canvas.create_image(520, 10, anchor="nw", image=self.x_icon_img_tk)
         self.canvas.tag_bind(x_icon_id, '<Button-1>', go_to_main_normal) # x-icon 클릭 시 선택 모드 없이 MainPage로 이동
