@@ -1,7 +1,7 @@
 from path_utils import find_route, find_route_with_stops, infer_direction
 from timetable_query import get_available_departures
 from data_loader import clean_station_name, load_line_station_map
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 def find_best_route(start: str, end: str, via_stations=None, mode='distance', start_time=None):
     """
@@ -65,3 +65,39 @@ def find_best_route(start: str, end: str, via_stations=None, mode='distance', st
             print(f"출발 시각 추천 기능 실패: {e}")
 
     return total_cost, path
+
+def recommend_trains_by_segments(segments, initial_time_str):
+    """
+    각 구간(노선별 direction 포함)에 대해 열차 추천
+    segments: split_path_by_line() 결과 (list of dict)
+    initial_time_str: 사용자 입력 시작 시각 (HH:MM:SS)
+    """
+    current_time = datetime.strptime(initial_time_str, "%H:%M:%S")
+    full_result = []
+
+    for seg in segments:
+        line = seg['line']
+        direction = seg['direction']
+        start_station = seg['stations'][0]
+
+        # 해당 구간에서 출발 가능한 열차 중 가장 이른 것 1~N개 조회
+        departures = get_available_departures(start_station, current_time.strftime("%H:%M:%S"),
+                                              line=line, direction=direction, limit=1)
+        if departures:
+            chosen = departures[0]
+            depart_time = chosen['출발시각']
+            train_number = chosen['열차번호']
+
+            full_result.append({
+                'line': line,
+                'from': start_station,
+                'to': seg['stations'][-1],
+                'direction': direction,
+                'train_number': train_number,
+                'depart_time': depart_time.time()
+            })
+
+            # 다음 구간의 출발 기준 시각 = 현재 구간의 출발 시각 + 대기 시간 가정
+            current_time = depart_time + timedelta(minutes=2)  # 환승 시간 고려
+
+    return full_result

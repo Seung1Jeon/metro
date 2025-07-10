@@ -78,3 +78,40 @@ def infer_direction(path: list[str]) -> dict[str, str]:
             direction_info[line] = '상' if end_idx > start_idx else '하'
 
     return direction_info
+
+def split_path_by_line(path: list[str]) -> list[dict]:
+    """
+    경로(path)를 노선 단위로 나누고 각 구간의 방향(상/하행)을 포함해 반환
+
+    Returns:
+        [
+          {'line': '1호선', 'stations': [...], 'direction': '상'},
+          {'line': '2호선', 'stations': [...], 'direction': '하'},
+        ]
+    """
+    line_map = load_line_station_map()
+    result = []
+
+    i = 0
+    while i < len(path) - 1:
+        for line, stations in line_map.items():
+            if path[i] in stations and path[i + 1] in stations:
+                start = i
+                while i + 1 < len(path) and path[i] in stations and path[i + 1] in stations:
+                    i += 1
+                segment = path[start:i + 1]
+
+                if len(segment) >= 2:
+                    start_idx = stations.index(segment[0])
+                    end_idx = stations.index(segment[-1])
+                    direction = '상' if end_idx > start_idx else '하'
+                    result.append({
+                        'line': line,
+                        'stations': segment,
+                        'direction': direction
+                    })
+                break
+        else:
+            i += 1 # 어느 노선에도 안 맞으면 다음으로 넘어감
+
+    return result
