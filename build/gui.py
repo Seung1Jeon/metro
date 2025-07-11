@@ -20,6 +20,7 @@ class MainPage(tk.Frame):
         self.controller = controller
         self.configure(bg="#FFFFFF")
         self.popup_window = None  # 역 클릭 팝업 참조
+        self.highlight_circle = None  # 역 하이라이트 원 id
         # 역 정보 리스트 (좌표, 이름)
         self.stations = [
             #1호선
@@ -139,12 +140,11 @@ class MainPage(tk.Frame):
         text_y = (input_search_img.height - text_height) // 2 - bbox[1]
         draw.text((20, text_y), text, font=font, fill=text_color)
         self.input_search_img_tk = ImageTk.PhotoImage(input_search_img)
-        # canvas.create_image(22, 13, anchor="nw", image=self.input_search_img_tk)
-        input_img_id = canvas.create_image(22, 13, anchor="nw", image=self.input_search_img_tk)
-
-        def go_to_third(event=None):
-            controller.show_frame("ThirdPage")
-        canvas.tag_bind(input_img_id, '<Button-1>', go_to_third)
+        input_search_img_id = canvas.create_image(22, 13, anchor="nw", image=self.input_search_img_tk)
+        # '전철역 검색' 영역 클릭 시 FourthPage로 이동
+        def go_to_fourth_page(event=None):
+            controller.show_frame("FourthPage")
+        canvas.tag_bind(input_search_img_id, '<Button-1>', go_to_fourth_page)
 
         # location-search.png
         location_search_img = Image.open("build/images/location-search.png").resize((48, 48))
@@ -162,25 +162,25 @@ class MainPage(tk.Frame):
         # 노선도 이미지 영역
         img_frame = tk.Frame(self, width=540, height=845, bg="#FFFFFF")
         img_frame.place(x=0, y=69)
-        img_canvas = tk.Canvas(img_frame, width=540, height=845, bg="#FFFFFF", bd=0, highlightthickness=0)
-        img_canvas.pack(side="left", fill="both", expand=True)
-        h_scroll = tk.Scrollbar(img_frame, orient="horizontal", command=img_canvas.xview)
+        self.img_canvas = tk.Canvas(img_frame, width=540, height=845, bg="#FFFFFF", bd=0, highlightthickness=0)
+        self.img_canvas.pack(side="left", fill="both", expand=True)
+        h_scroll = tk.Scrollbar(img_frame, orient="horizontal", command=self.img_canvas.xview)
         h_scroll.pack(side="bottom", fill="x")
-        img_canvas.configure(xscrollcommand=h_scroll.set)
+        self.img_canvas.configure(xscrollcommand=h_scroll.set)
         orig_img = Image.open("build/images/main.png")
         img_w, img_h = 897, 845
         self.cur_scale = 1.0
         img = orig_img.resize((img_w, img_h))
         self.img_tk = ImageTk.PhotoImage(img)
-        img_id = img_canvas.create_image(0, 0, anchor="nw", image=self.img_tk)
-        img_canvas.config(scrollregion=(0, 0, img_w, img_h))
-        img_canvas.image = self.img_tk
+        img_id = self.img_canvas.create_image(0, 0, anchor="nw", image=self.img_tk)
+        self.img_canvas.config(scrollregion=(0, 0, img_w, img_h))
+        self.img_canvas.image = self.img_tk
         def on_click(event):
-            img_canvas.scan_mark(event.x, event.y)
+            self.img_canvas.scan_mark(event.x, event.y)
         def on_drag(event):
-            img_canvas.scan_dragto(event.x, event.y, gain=1)
-        img_canvas.tag_bind(img_id, "<ButtonPress-1>", on_click)
-        img_canvas.tag_bind(img_id, "<B1-Motion>", on_drag)
+            self.img_canvas.scan_dragto(event.x, event.y, gain=1)
+        self.img_canvas.tag_bind(img_id, "<ButtonPress-1>", on_click)
+        self.img_canvas.tag_bind(img_id, "<B1-Motion>", on_drag)
         def on_zoom(event):
             if event.state & 0x0001:
                 if event.delta > 0:
@@ -192,14 +192,14 @@ class MainPage(tk.Frame):
                 new_h = int(img_h * self.cur_scale)
                 img2 = orig_img.resize((new_w, new_h))
                 self.img_tk = ImageTk.PhotoImage(img2)
-                img_canvas.itemconfig(img_id, image=self.img_tk)
-                img_canvas.config(scrollregion=(0, 0, new_w, new_h))
-                img_canvas.image = self.img_tk
-        img_canvas.bind_all("<MouseWheel>", on_zoom)
+                self.img_canvas.itemconfig(img_id, image=self.img_tk)
+                self.img_canvas.config(scrollregion=(0, 0, new_w, new_h))
+                self.img_canvas.image = self.img_tk
+        self.img_canvas.bind_all("<MouseWheel>", on_zoom)
 
         # 좌표 출력 및 역 판정
         self.on_img_canvas_click = self.on_img_canvas_click
-        img_canvas.bind("<Button-1>", self.on_img_canvas_click)
+        self.img_canvas.bind("<Button-1>", self.on_img_canvas_click)
 
     def show_station_popup(self, canvas, x, y, station_name):
         # 기존 팝업 제거
@@ -328,7 +328,41 @@ class MainPage(tk.Frame):
         if self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
             self.popup_window = None
-        event.widget.create_text(real_x, real_y, text=f"({int(orig_x)}, {int(orig_y)})", fill="red", font=("Malgun Gothic", 10))
+
+    def focus_station_by_name(self, name):
+        # 해당 역 좌표로 이동 및 확대, 빨간 원 표시
+        for st in self.stations:
+            if st["name"] == name:
+                x, y = st["x"], st["y"]
+                # 확대(zoom) 적용
+                self.cur_scale = 2.0
+                img_w, img_h = 897, 845
+                orig_img = Image.open("build/images/main.png")
+                new_w = int(img_w * self.cur_scale)
+                new_h = int(img_h * self.cur_scale)
+                img2 = orig_img.resize((new_w, new_h))
+                self.img_tk = ImageTk.PhotoImage(img2)
+                self.img_canvas.itemconfig(1, image=self.img_tk)
+                self.img_canvas.config(scrollregion=(0, 0, new_w, new_h))
+                self.img_canvas.image = self.img_tk
+                # 좌표를 스케일에 맞게 변환
+                sx = x * self.cur_scale
+                sy = y * self.cur_scale
+                # 캔버스 중앙에 해당 역이 오도록 스크롤 이동
+                cx = max(sx - 540//2, 0)
+                cy = max(sy - 845//2, 0)
+                self.img_canvas.xview_moveto(cx / (new_w if new_w > 0 else 1))
+                self.img_canvas.yview_moveto(cy / (new_h if new_h > 0 else 1))
+                # 기존 원 삭제
+                if self.highlight_circle:
+                    self.img_canvas.delete(self.highlight_circle)
+                # 빨간 원 그리기(반지름 18)
+                r = 18
+                self.highlight_circle = self.img_canvas.create_oval(
+                    sx - r, sy - r, sx + r, sy + r,
+                    outline="#6a66ff", width=4
+                )
+                break
 
 class SecondPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -382,7 +416,7 @@ class SecondPage(tk.Frame):
         self.recent_y_start = 186
         self.recent_items = []  # 캔버스 아이템 id 리스트
         # search-icon.png 로드
-        search_icon_img = Image.open("build/images/search-icon.png").resize((16, 16))
+        search_icon_img = Image.open("build/images/search-icon.png").resize((18, 18))
         self.search_icon_img_tk = ImageTk.PhotoImage(search_icon_img)
         # 히스토리 삭제 텍스트 추가 (초기 y좌표는 최근검색 리스트 렌더링 후에 위치시킴)
         self.history_delete_id = None
@@ -731,14 +765,11 @@ class ThirdPage(tk.Frame):
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
 
-        
-# -------------------------------------------------------------------------
-#class FourthPage(tk.Frame):
-class ThirdPage(tk.Frame):
+class FourthPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
-
+        self.recent_searches = []  # 최근검색 리스트
         self.canvas = tk.Canvas(
             self,
             bg="#FFFFFF",
@@ -749,66 +780,202 @@ class ThirdPage(tk.Frame):
             relief="ridge"
         )
         self.canvas.place(x=0, y=0)
-
-       # 상단 검색창 배경 (더 넓게 확장)
-        self.canvas.create_rectangle(24.36, 29.0, 360.15, 75.74, fill="#FFFFFF", outline="")
-
-        # input-search 이미지 불러오기 및 텍스트 넣기 (더 넓게 확장)
-        input_search_img = Image.open("build/images/input-search.png").resize((485, 48))
-        draw = ImageDraw.Draw(input_search_img)
-        try:
-            font = ImageFont.truetype(IMG_FONT_PATH, 18)
-        except:
-            font = ImageFont.load_default()
-        text = "전철역 검색"
-        text_color = "#bbbbbb"
-        bbox = draw.textbbox((0, 0), text, font=font)                                                 
-        text_height = bbox[3] - bbox[1]
-        text_y = (input_search_img.height - text_height) // 2 - bbox[1]
-        draw.text((20, text_y), text, font=font, fill=text_color)
-
+        # search-icon 이미지 준비 (이 줄을 추가!)
+        self.search_icon_img_tk = ImageTk.PhotoImage(Image.open("build/images/search-icon.png").resize((18, 18)))
+        # MainPage와 동일한 전철역 검색창 (이미지 draw.text는 제거)
+        input_search_img = Image.open("build/images/input-search2.png").resize((496, 48))
         self.tk_img = ImageTk.PhotoImage(input_search_img)
-        self.canvas.create_image(24.36, 29.0, image=self.tk_img, anchor="nw")
-
-
-
-       # 즐겨찾기 아래 회색 배경 박스
+        input_search_img_id = self.canvas.create_image(22, 13, anchor="nw", image=self.tk_img)
+        # Entry(검색창) 추가
+        self.search_entry = tk.Entry(self.canvas, font=("Malgun Gothic", 14), bd=0, relief="flat", fg="#222222")
+        self.search_entry.place(x=60, y=22, width=350, height=32)
+        self.search_entry.insert(0, "전철역 검색")
+        self.search_entry.config(fg="#bbbbbb")
+        def on_entry_focus_in(event):
+            if self.search_entry.get() == "전철역 검색":
+                self.search_entry.delete(0, tk.END)
+                self.search_entry.config(fg="#222222")
+        def on_entry_focus_out(event):
+            if not self.search_entry.get():
+                self.search_entry.insert(0, "전철역 검색")
+                self.search_entry.config(fg="#bbbbbb")
+        self.search_entry.bind("<FocusIn>", on_entry_focus_in)
+        self.search_entry.bind("<FocusOut>", on_entry_focus_out)
+        self.search_entry.bind("<Return>", self.on_search_enter)
+        # arrow(뒤로가기) 버튼 이미지를 검색창 이미지보다 나중에 그려서 항상 위에 보이게
+        self.arrow_img_tk = ImageTk.PhotoImage(Image.open("build/images/arrow-icon.png").resize((10, 20)))
+        arrow_img_id = self.canvas.create_image(37, 27, anchor="nw", image=self.arrow_img_tk)
+        def go_to_main(event=None):
+            controller.show_frame("MainPage")
+        self.canvas.tag_bind(arrow_img_id, '<Button-1>', go_to_main)
+        # 즐겨찾기 아래 회색 배경 박스
         self.canvas.create_rectangle(1.0, 151.70, 540.0, 215.08, fill="#EEEEEE", outline="")
-
         # footer2.png 이미지 표시 (회색 박스 위에 정확히 올림)
         self.footer2_png = Image.open("build/images/footer2.png").resize((540, 64))
         self.footer2_png_tk = ImageTk.PhotoImage(self.footer2_png)
         self.canvas.create_image(0, 151.7, anchor="nw", image=self.footer2_png_tk)
-       
         # 텍스트들
         self.canvas.create_text(23.37, 82.20, anchor="nw", text="즐겨찾기", fill="#000000", font=("Malgun Gothic", 15 * -1))
-        self.canvas.create_text(23.37, 225.41, anchor="nw", text="최근 검색", fill="#000000", font=("Malgun Gothic", 15 * -1))
-        self.canvas.create_text(40.77, 116.02, anchor="nw", text="화원", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
-        self.canvas.create_text(100.94, 116.02, anchor="nw", text="화원", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
-        self.canvas.create_text(161.10, 116.02, anchor="nw", text="화원", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
-        self.canvas.create_text(45.25, 261.21, anchor="nw", text="화원", fill="#606060", font=("Malgun Gothic", 11 * -1))
-        self.canvas.create_text(45.25, 292.54, anchor="nw", text="화원", fill="#606060", font=("Malgun Gothic", 11 * -1))
-        self.canvas.create_text(45.25, 323.86, anchor="nw", text="화원", fill="#606060", font=("Malgun Gothic", 11 * -1))
-        self.canvas.create_text(234.20, 372.59, anchor="nw", text="히스토리 삭제", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
+        self.canvas.create_text(23.37, 225.41, anchor="nw", text="최근검색", fill="#000000", font=("Malgun Gothic", 15 * -1))
+        # 즐겨찾기 렌더링
+        self.fav_icon_img2_tk = ImageTk.PhotoImage(Image.open("build/images/subway-icon2.png").resize((14, 15)))
+        self.fav_items = []
+        self.render_favorites()
+        self.render_recent_searches()
+        self.canvas.bind('<Button-1>', self.on_fav_click)
+        # 최근검색 리스트는 별도 구현(아래 메서드 참고)
 
-        # 즐겨찾기 아이콘 3개 (사각형)
-        self.canvas.create_rectangle(24.36, 118.0, 37.29, 130.93, fill="#000000", outline="")
-        self.canvas.create_rectangle(85.0, 118.0, 97.93, 130.93, fill="#000000", outline="")
-        self.canvas.create_rectangle(145.0, 118.0, 157.93, 130.93, fill="#000000", outline="")
+    def render_recent_searches(self):
+        # 기존 아이템 삭제
+        if hasattr(self, 'recent_items'):
+            for item in self.recent_items:
+                self.canvas.delete(item)
+        self.recent_items = []
+        # 히스토리 삭제 텍스트도 삭제
+        if hasattr(self, 'history_delete_id') and self.history_delete_id:
+            self.canvas.delete(self.history_delete_id)
+            self.history_delete_id = None
+        y = 261  # 최근검색 시작 y좌표
+        for name in self.recent_searches:
+            icon_id = self.canvas.create_image(25, y, anchor="nw", image=self.search_icon_img_tk)
+            text_id = self.canvas.create_text(60, y, anchor="nw", text=name, fill="#606060", font=("Malgun Gothic", 14 * -1))
+            self.recent_items.extend([icon_id, text_id])
+            def on_recent_click(event, name=name):
+                self.controller.show_frame("MainPage")
+                self.controller.frames["MainPage"].focus_station_by_name(name)
+            self.canvas.tag_bind(icon_id, '<Button-1>', on_recent_click)
+            self.canvas.tag_bind(text_id, '<Button-1>', on_recent_click)
+            y += 32
+        # 최근검색이 있을 때만 히스토리 삭제 텍스트 추가
+        if self.recent_searches:
+            self.history_delete_id = self.canvas.create_text(229.0, y, anchor="nw", text="히스토리 삭제", fill="#6A66FF", font=("Malgun Gothic", 14 * -1))
+            self.canvas.tag_bind(self.history_delete_id, '<Button-1>', self.clear_recent_searches)
 
-        # 검색창 아이콘들
-        self.canvas.create_rectangle(29.34, 39.94, 55.69, 66.29, fill="#000000", outline="")  # 왼쪽 (돋보기)
-        self.canvas.create_rectangle(474.86, 39.44, 501.22, 65.80, fill="#000000", outline="")  # 오른쪽 (마이크)
+    def clear_recent_searches(self, event=None):
+        self.recent_searches = []
+        self.render_recent_searches()
 
-        # 보라색 커서 세로선
-        self.canvas.create_rectangle(58.92, 36.21, 59.17, 69.77, fill="#6A66FF", outline="")
+    def on_search_enter(self, event):
+        query = self.search_entry.get().strip()
+        if not query or query == "전철역 검색":
+            return
+        # 역 이름이 존재하는지 확인
+        stations = self.controller.frames["MainPage"].stations
+        found = None
+        for st in stations:
+            if st["name"] == query:
+                found = st
+                break
+        if found:
+            # 최근검색 추가(중복 제거, 최대 5개)
+            if query in self.recent_searches:
+                self.recent_searches.remove(query)
+            self.recent_searches.insert(0, query)
+            if len(self.recent_searches) > 5:
+                self.recent_searches.pop()
+            self.render_recent_searches()
+            self.controller.show_frame("MainPage")
+            self.controller.frames["MainPage"].focus_station_by_name(query)
+        else:
+            messagebox.showinfo("알림", f"'{query}' 역을 찾을 수 없습니다.")
 
-        # 최근 검색 줄 구분선
-        self.canvas.create_rectangle(1.99, 287.56, 534.03, 288.06, fill="#CCCCCC", outline="")
-        self.canvas.create_rectangle(1.99, 319.39, 534.03, 319.88, fill="#CCCCCC", outline="")
-        self.canvas.create_rectangle(1.99, 351.21, 534.03, 351.71, fill="#CCCCCC", outline="")
+    def render_favorites(self):
+        # 기존 즐겨찾기 아이템 삭제
+        for item in getattr(self, 'fav_items', []):
+            self.canvas.delete(item)
+        self.fav_items = []
+        x = 24  # '즐겨찾기' 텍스트 오른쪽(왼쪽 여백 줄임)
+        y = 116
+        self._fav_hitboxes = []  # (x1, y1, x2, y2, fav) 리스트
+        for fav in self.controller.favorites:
+            text_w = len(fav) * 15
+            icon_id = self.canvas.create_image(x, y+2, anchor="nw", image=self.fav_icon_img2_tk)
+            text_id = self.canvas.create_text(x+20, y, anchor="nw", text=fav, fill="#6A66FF", font=("Malgun Gothic", 14 * -1))
+            self.fav_items.extend([icon_id, text_id])
+            self._fav_hitboxes.append((x, y, x+20+text_w, y+22, fav))
+            x += 20 + text_w + 30
 
-# ------------------------------------------------------------------
+    def on_fav_click(self, event):
+        # 즐겨찾기 hitbox 내 클릭 시 해당 역으로 이동(검색과 동일하게) + 최근검색에 추가
+        if not hasattr(self, '_fav_hitboxes'):
+            return
+        for x1, y1, x2, y2, fav in self._fav_hitboxes:
+            if x1 <= event.x <= x2 and y1 <= event.y <= y2:
+                # 최근검색 추가(중복 제거, 최대 5개)
+                if fav in self.recent_searches:
+                    self.recent_searches.remove(fav)
+                self.recent_searches.insert(0, fav)
+                if len(self.recent_searches) > 5:
+                    self.recent_searches.pop()
+                self.render_recent_searches()
+                # MainPage로 이동 및 해당 역 하이라이트
+                self.controller.show_frame("MainPage")
+                self.controller.frames["MainPage"].focus_station_by_name(fav)
+                return
+
+    def show_fav_popup(self, x, y, station_name, event=None):
+        popup_width = 200
+        canvas_width = int(self.canvas['width'])
+        if x + popup_width > canvas_width:
+            x = canvas_width - popup_width
+        if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
+            self.fav_popup_canvas.delete(self.fav_popup_window)
+            self.fav_popup_window = None
+        self.fav_popup_canvas = self.canvas
+        frame = tk.Frame(self.canvas, bg="#F8F8F8", bd=1, relief="solid")
+        btn1 = tk.Button(frame, text=f"{station_name}(역)을 출발지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_departure_from_fav(station_name))
+        btn2 = tk.Button(frame, text=f"{station_name}(역)을 도착지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_arrival_from_fav(station_name))
+        btn1.pack(fill="x", padx=5, pady=2)
+        btn2.pack(fill="x", padx=5, pady=2)
+        self.fav_popup_window = self.canvas.create_window(x, y, window=frame, anchor="nw")
+        def close_popup(event=None):
+            if self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
+                self.fav_popup_canvas.delete(self.fav_popup_window)
+                self.fav_popup_window = None
+            if hasattr(self, 'fav_popup_bind_id') and self.fav_popup_bind_id:
+                self.canvas.unbind("<Button-1>", self.fav_popup_bind_id)
+                self.fav_popup_bind_id = None
+        self.canvas.bind('<Button-1>', self.on_fav_click)
+        self.fav_popup_bind_id = self.canvas.bind("<Button-1>", close_popup, add='+')
+
+    def set_departure_from_fav(self, station_name):
+        if self.controller.departure_station and self.controller.arrival_station:
+            self.controller.set_arrival_station(None)
+        if self.controller.arrival_station == station_name:
+            messagebox.showinfo("알림", "출발지와 도착지가 동일합니다!")
+            return
+        self.controller.set_departure_station(station_name)
+        self.controller.is_selecting_departure = False
+        self.controller.is_selecting_arrival = False
+        if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
+            self.fav_popup_canvas.delete(self.fav_popup_window)
+            self.fav_popup_window = None
+        if self.controller.departure_station and self.controller.arrival_station:
+            self.controller.show_frame("ThirdPage")
+        else:
+            self.controller.show_frame("FourthPage")
+
+    def set_arrival_from_fav(self, station_name):
+        if self.controller.departure_station and self.controller.arrival_station:
+            self.controller.set_departure_station(None)
+        if self.controller.departure_station == station_name:
+            messagebox.showinfo("알림", "출발지와 도착지가 동일합니다!")
+            return
+        self.controller.set_arrival_station(station_name)
+        self.controller.is_selecting_arrival = False
+        self.controller.is_selecting_departure = False
+        if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
+            self.fav_popup_canvas.delete(self.fav_popup_window)
+            self.fav_popup_window = None
+        if self.controller.departure_station and self.controller.arrival_station:
+            self.controller.show_frame("ThirdPage")
+        else:
+            self.controller.show_frame("FourthPage")
+
+    def close_fav_popup(self):
+        if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
+            self.fav_popup_canvas.delete(self.fav_popup_window)
+            self.fav_popup_window = None
 
 class MetroApp(tk.Tk):
     def __init__(self):
@@ -821,8 +988,7 @@ class MetroApp(tk.Tk):
         self.is_selecting_arrival = False
         self.favorites = []  # 즐겨찾기 역 리스트
         self.frames = {}
-        for F in (MainPage, SecondPage, ThirdPage):
-     
+        for F in (MainPage, SecondPage, ThirdPage, FourthPage):
             frame = F(self, self)
             self.frames[F.__name__] = frame
             frame.place(x=0, y=0, relwidth=1, relheight=1)
@@ -830,6 +996,11 @@ class MetroApp(tk.Tk):
     def show_frame(self, name):
         print("show_frame:", name)
         self.frames[name].tkraise()
+        # MainPage가 아닐 때 하이라이트 원 삭제
+        if name != "MainPage":
+            if hasattr(self.frames["MainPage"], "highlight_circle") and self.frames["MainPage"].highlight_circle:
+                self.frames["MainPage"].img_canvas.delete(self.frames["MainPage"].highlight_circle)
+                self.frames["MainPage"].highlight_circle = None
         if name == "MainPage":
             self.frames["MainPage"].reset_popup_state()
         if name == "SecondPage":
@@ -838,6 +1009,10 @@ class MetroApp(tk.Tk):
         if name == "ThirdPage":
             self.frames["ThirdPage"].close_fav_popup()
             self.frames["ThirdPage"].render_favorites()
+        if name == "FourthPage":
+            if hasattr(self.frames["FourthPage"], "close_fav_popup"):
+                self.frames["FourthPage"].close_fav_popup()
+            self.frames["FourthPage"].render_favorites()
     def set_departure_station(self, station_name):
         self.departure_station = station_name
         self.frames["SecondPage"].update_departure_text()
