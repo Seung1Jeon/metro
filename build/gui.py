@@ -139,7 +139,12 @@ class MainPage(tk.Frame):
         text_y = (input_search_img.height - text_height) // 2 - bbox[1]
         draw.text((20, text_y), text, font=font, fill=text_color)
         self.input_search_img_tk = ImageTk.PhotoImage(input_search_img)
-        canvas.create_image(22, 13, anchor="nw", image=self.input_search_img_tk)
+        # canvas.create_image(22, 13, anchor="nw", image=self.input_search_img_tk)
+        input_img_id = canvas.create_image(22, 13, anchor="nw", image=self.input_search_img_tk)
+
+        def go_to_third(event=None):
+            controller.show_frame("ThirdPage")
+        canvas.tag_bind(input_img_id, '<Button-1>', go_to_third)
 
         # location-search.png
         location_search_img = Image.open("build/images/location-search.png").resize((48, 48))
@@ -726,6 +731,85 @@ class ThirdPage(tk.Frame):
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
 
+        
+# -------------------------------------------------------------------------
+#class FourthPage(tk.Frame):
+class ThirdPage(tk.Frame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
+
+        self.canvas = tk.Canvas(
+            self,
+            bg="#FFFFFF",
+            height=960,
+            width=540,
+            bd=0,
+            highlightthickness=0,
+            relief="ridge"
+        )
+        self.canvas.place(x=0, y=0)
+
+       # 상단 검색창 배경 (더 넓게 확장)
+        self.canvas.create_rectangle(24.36, 29.0, 360.15, 75.74, fill="#FFFFFF", outline="")
+
+        # input-search 이미지 불러오기 및 텍스트 넣기 (더 넓게 확장)
+        input_search_img = Image.open("build/images/input-search.png").resize((485, 48))
+        draw = ImageDraw.Draw(input_search_img)
+        try:
+            font = ImageFont.truetype(IMG_FONT_PATH, 18)
+        except:
+            font = ImageFont.load_default()
+        text = "전철역 검색"
+        text_color = "#bbbbbb"
+        bbox = draw.textbbox((0, 0), text, font=font)                                                 
+        text_height = bbox[3] - bbox[1]
+        text_y = (input_search_img.height - text_height) // 2 - bbox[1]
+        draw.text((20, text_y), text, font=font, fill=text_color)
+
+        self.tk_img = ImageTk.PhotoImage(input_search_img)
+        self.canvas.create_image(24.36, 29.0, image=self.tk_img, anchor="nw")
+
+
+
+       # 즐겨찾기 아래 회색 배경 박스
+        self.canvas.create_rectangle(1.0, 151.70, 540.0, 215.08, fill="#EEEEEE", outline="")
+
+        # footer2.png 이미지 표시 (회색 박스 위에 정확히 올림)
+        self.footer2_png = Image.open("build/images/footer2.png").resize((540, 64))
+        self.footer2_png_tk = ImageTk.PhotoImage(self.footer2_png)
+        self.canvas.create_image(0, 151.7, anchor="nw", image=self.footer2_png_tk)
+       
+        # 텍스트들
+        self.canvas.create_text(23.37, 82.20, anchor="nw", text="즐겨찾기", fill="#000000", font=("Malgun Gothic", 15 * -1))
+        self.canvas.create_text(23.37, 225.41, anchor="nw", text="최근 검색", fill="#000000", font=("Malgun Gothic", 15 * -1))
+        self.canvas.create_text(40.77, 116.02, anchor="nw", text="화원", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
+        self.canvas.create_text(100.94, 116.02, anchor="nw", text="화원", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
+        self.canvas.create_text(161.10, 116.02, anchor="nw", text="화원", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
+        self.canvas.create_text(45.25, 261.21, anchor="nw", text="화원", fill="#606060", font=("Malgun Gothic", 11 * -1))
+        self.canvas.create_text(45.25, 292.54, anchor="nw", text="화원", fill="#606060", font=("Malgun Gothic", 11 * -1))
+        self.canvas.create_text(45.25, 323.86, anchor="nw", text="화원", fill="#606060", font=("Malgun Gothic", 11 * -1))
+        self.canvas.create_text(234.20, 372.59, anchor="nw", text="히스토리 삭제", fill="#6A66FF", font=("Malgun Gothic", 11 * -1))
+
+        # 즐겨찾기 아이콘 3개 (사각형)
+        self.canvas.create_rectangle(24.36, 118.0, 37.29, 130.93, fill="#000000", outline="")
+        self.canvas.create_rectangle(85.0, 118.0, 97.93, 130.93, fill="#000000", outline="")
+        self.canvas.create_rectangle(145.0, 118.0, 157.93, 130.93, fill="#000000", outline="")
+
+        # 검색창 아이콘들
+        self.canvas.create_rectangle(29.34, 39.94, 55.69, 66.29, fill="#000000", outline="")  # 왼쪽 (돋보기)
+        self.canvas.create_rectangle(474.86, 39.44, 501.22, 65.80, fill="#000000", outline="")  # 오른쪽 (마이크)
+
+        # 보라색 커서 세로선
+        self.canvas.create_rectangle(58.92, 36.21, 59.17, 69.77, fill="#6A66FF", outline="")
+
+        # 최근 검색 줄 구분선
+        self.canvas.create_rectangle(1.99, 287.56, 534.03, 288.06, fill="#CCCCCC", outline="")
+        self.canvas.create_rectangle(1.99, 319.39, 534.03, 319.88, fill="#CCCCCC", outline="")
+        self.canvas.create_rectangle(1.99, 351.21, 534.03, 351.71, fill="#CCCCCC", outline="")
+
+# ------------------------------------------------------------------
+
 class MetroApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -738,6 +822,7 @@ class MetroApp(tk.Tk):
         self.favorites = []  # 즐겨찾기 역 리스트
         self.frames = {}
         for F in (MainPage, SecondPage, ThirdPage):
+     
             frame = F(self, self)
             self.frames[F.__name__] = frame
             frame.place(x=0, y=0, relwidth=1, relheight=1)
