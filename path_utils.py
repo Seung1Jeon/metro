@@ -1,6 +1,5 @@
-from data_loader import load_distance_graph, load_time_graph, clean_station_name, load_line_station_map
+from data_loader import load_distance_graph, build_travel_time_graph, clean_station_name, load_line_station_map
 from shortest_path import dijkstra_distance, dijkstra_time
-
 
 # 경유역 미포함
 def find_route(start_station: str, end_station: str, mode='distance'):
@@ -9,7 +8,7 @@ def find_route(start_station: str, end_station: str, mode='distance'):
 
     # 최소 시간/최소 거리 조건 분기
     if mode == 'time':
-        graph = load_time_graph()
+        graph = build_travel_time_graph()
         dijkstra_func = dijkstra_time
     else:    
         graph = load_distance_graph()
@@ -28,7 +27,7 @@ def find_route(start_station: str, end_station: str, mode='distance'):
 def find_route_with_stops(start: str, stops: list[str], mode='distance'):
     # 최소 시간/최소 거리 조건 분기
     if mode == 'time':
-        graph = load_time_graph()
+        graph = build_travel_time_graph()
         dijkstra_func = dijkstra_time
     else:
         graph = load_distance_graph()

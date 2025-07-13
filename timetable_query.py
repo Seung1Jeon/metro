@@ -1,51 +1,57 @@
 import pandas as pd
 from data_loader import clean_station_name
 
-def get_available_departures(timetable_dict, line, direction, station, after_time):
+def get_available_departures(
+    timetable_dict,
+    line,
+    direction,
+    station,
+    next_station=None,
+    prev_station=None,
+    time_str=None
+):
     """
-    주어진 노선, 방향, 역명, 시각 이후 출발 가능한 열차 정보 반환
-    
-    Parameters:
-        timetable_dict (dict): {(line, direction): pd.DataFrame}
-        line (str): 노선명 (예: '1호선')
-        direction (str): '상' 또는 '하'
-        station (str): 역명
-        after_time (datetime.time): 기준 시간
-
-    Returns:
-        List[dict]: 출발 가능한 열차 정보 리스트
+    특정 역에서 주어진 시각 이후의 열차 출발 정보를 반환합니다.
+    기점/종점 예외를 포함해 '도착' 시각을 출발 시각으로 간주하거나,
+    이전 역의 도착 시각을 대신 사용하는 처리를 포함합니다.
     """
-    station = clean_station_name(station)
+    import pandas as pd
 
-    key = (line, direction)
-    if key not in timetable_dict:
-        print(f"[경고] 해당 노선/방향의 데이터가 없습니다: {key}")
-        return []
+    try:
+        timetable_df = timetable_dict[(line, direction)]
+    except KeyError:
+        print(f"[오류] 노선({line}) 방향({direction})의 시각표 데이터가 없습니다.")
+        return pd.DataFrame()
 
-    df = timetable_dict[key]
-    df = df[df['역명'] == station]
+    # 출발 시각은 기본적으로 해당 역의 '출발' 구분만 필터링
+    departures = timetable_df[
+        (timetable_df['역명'] == station) & 
+        (timetable_df['구분'] == '출발')
+    ].copy()
 
-    if df.empty:
-        print(f"[경고] 해당 역({station})의 데이터가 없습니다.")
-        return []
+    # 출발 시각이 없고 '도착'만 있는 경우 → csv 파일 기준 기점역
+    if departures.empty:
+        possible_departure = timetable_df[
+            (timetable_df['역명'] == station) & 
+            (timetable_df['구분'] == '도착')
+        ].copy()
+        if not possible_departure.empty:
+            print(f"[⚠️ 기점역 처리] '{station}'역은 도착 시각만 존재 → 출발 시각으로 간주합니다.")
+            departures = possible_departure.copy()
 
-    df = df[df['구분'] == '출발']
-    if df.empty:
-        print(f"[정보] {station}역에는 '출발' 정보가 없습니다.")
-        return []
+    # 종점역의 경우 출발 시각이 없고 이전역 도착 시각으로 대체
+    if departures.empty and prev_station:
+        arrivals_at_prev = timetable_df[
+            (timetable_df['역명'] == prev_station) & 
+            (timetable_df['구분'] == '도착')
+        ].copy()
+        if not arrivals_at_prev.empty:
+            print(f"[⚠️ 종점역 처리] '{station}'역의 출발 시각이 없어서 이전역('{prev_station}') 도착 시각을 대체합니다.")
+            departures = arrivals_at_prev.copy()
 
-    time_data = []
-    for col in df.columns:
-        if col.isdigit():
-            try:
-                departure_time = pd.to_datetime(df.iloc[0][col], format="%H:%M:%S", errors='coerce')
-                if pd.notna(departure_time) and departure_time.time() >= after_time:
-                    time_data.append({
-                        'train_number': col,
-                        'departure_time': departure_time.time()
-                    })
-            except Exception:
-                continue
+    # 주어진 시각 이후 열차만 필터링
+    if time_str:
+        departures = departures[departures['시각'] >= time_str]
 
-    return sorted(time_data, key=lambda x: x['departure_time'])
-
+    # 시각 기준 정렬
+    return departures.sort_values(by='시각')
