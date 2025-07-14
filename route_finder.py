@@ -8,9 +8,9 @@ def find_best_route(start: str, end: str, via_stations=None, mode='distance', st
     """
     최소 거리/최소 시간 기반 경로 탐색 + 출발 시각 보조 기능
     """
-    start = clean_station_name(start)
-    end = clean_station_name(end)
-    via_stations = [clean_station_name(st) for st in via_stations] if via_stations else []
+    start = clean_station_name(start) # 출발역
+    end = clean_station_name(end) # 도착역
+    via_stations = [clean_station_name(st) for st in via_stations] if via_stations else [] # 경유역
 
     # 경유역 여부에 따라 분기
     if via_stations:
@@ -27,7 +27,7 @@ def find_best_route(start: str, end: str, via_stations=None, mode='distance', st
             target_line = None
             direction = None
             for line, dir in direction_info.items():
-                if start in load_line_station_map()[line]:
+                if start in load_line_station_map()[line]: # 기점을 포함하는 노선이라면 우선 사용
                     target_line = line
                     direction = dir
                     break
@@ -103,4 +103,4 @@ def recommend_trains_by_segments(segments, start_time_str="07:00:00"):
             f"| 방향: {direction}"
         )
 
-        current_time = arrival_time + timedelta(minutes=2)  # 환승 시간 고려
+        current_time = arrival_time + timedelta(minutes=2)  # 환승 시간 2분을 더함
