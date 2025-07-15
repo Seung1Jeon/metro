@@ -1001,7 +1001,8 @@ class ThirdPage(tk.Frame):
         # 원 여러 개 그리기 함수 (출발/도착역은 크고, 중앙에 호선 번호 표시)
         def draw_multi_circles(x, y, r, lines, show_number=False):
             n = len(lines)
-            offset = 8 if r <= 5 else 20
+            # 경유역(점)일 때는 offset을 4로 줄여서 겹치게, 출발/도착역(큰 원)은 기존대로
+            offset = 7 if r <= 6 else 20
             ids = []
             text_ids = []
             for idx, line in enumerate(lines):
