@@ -45,13 +45,15 @@ def find_best_route(start: str, end: str, via_stations=None, mode='distance', st
                 )
 
                 print(f"\n'{start}'역 기준 {start_time} 이후 가장 빠른 열차 목록 (상위 5개):")
-                for i, row in enumerate(nearest[:5], 1):
-                    depart_time = row['departure_time']
+                for i, (_, row) in enumerate(nearest[:5].iterrows(), 1):
+                    depart_time = row['시각']
                     if mode == 'time':
-                        arrival_time = datetime.combine(datetime.today(), depart_time) + timedelta(seconds=total_cost)
-                        print(f"{i:02d}. 열차번호: {row['train_number']} | 시각: {depart_time} → 도착 예정: {arrival_time.time()} | 방향: {direction}")
+                        # Timestamp를 time 객체로 변환
+                        depart_time_obj = depart_time.time() if hasattr(depart_time, 'time') else depart_time
+                        arrival_time = datetime.combine(datetime.today(), depart_time_obj) + timedelta(seconds=total_cost)
+                        print(f"{i:02d}. 열차번호: {row['열차번호']} | 시각: {depart_time} → 도착 예정: {arrival_time.time()} | 방향: {direction}")
                     else:
-                        print(f"{i:02d}. 열차번호: {row['train_number']} | 시각: {depart_time} | 방향: {direction}")
+                        print(f"{i:02d}. 열차번호: {row['열차번호']} | 시각: {depart_time} | 방향: {direction}")
             else:
                 print("방향 정보가 불충분하여 추천 열차 필터링을 건너뜁니다.")
         except Exception as e:

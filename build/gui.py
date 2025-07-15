@@ -9,6 +9,19 @@ from PIL import Image, ImageTk, ImageDraw, ImageFont
 import os
 from tkinter import messagebox
 from functools import partial
+import sys
+import os
+from tkinter import simpledialog
+
+# 경로 계산 모듈 import를 위한 경로 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# 경로 계산 관련 모듈들 import
+from route_finder import find_best_route, recommend_trains_by_segments
+from path_utils import split_path_by_line, infer_direction
+from timetable_query import get_available_departures
+from data_loader import prepare_timetable_long_format_dict, clean_station_name, load_line_station_map
+from datetime import datetime, timedelta
 
 IMG_FONT_PATH = "C:\\Windows\\Fonts\\malgun.ttf"
 
@@ -19,107 +32,114 @@ class MainPage(tk.Frame):
         self.configure(bg="#FFFFFF")
         self.popup_window = None  # 역 클릭 팝업 참조
         self.highlight_circle = None  # 역 하이라이트 원 id
-        # 역 정보 리스트 (좌표, 이름)
+        # 노선별 색상 매핑
+        # self.line_colors = {
+        #     '1호선': '#E60012',  # 빨간색
+        #     '2호선': '#009944',  # 초록색
+        #     '3호선': '#FFD400',  # 노란색
+        #     '대경선': '#0067B3',  # 파란색
+        # }
+        # 역 정보 리스트 (좌표, 이름, lines)
         self.stations = [
-            #1호선
-            {"name": "설화명곡", "x": 74, "y": 66},
-            {"name": "화원", "x": 74, "y": 93},
-            {"name": "대곡", "x": 74, "y": 122},
-            {"name": "진천", "x": 74, "y": 149},
-            {"name": "월배", "x": 75, "y": 178},
-            {"name": "상인", "x": 86, "y": 208},
-            {"name": "월촌", "x": 105, "y": 234},
-            {"name": "송현", "x": 130, "y": 251},
-            {"name": "서부정류장", "x": 162, "y": 259},
-            {"name": "대명", "x": 206, "y": 260},
-            {"name": "안지랑", "x": 251, "y": 260},
-            {"name": "현충로", "x": 300, "y": 260},
-            {"name": "영대병원", "x": 350, "y": 260},
-            {"name": "교대", "x": 399, "y": 260},
-            {"name": "명덕", "x": 446, "y": 281}, #1, 3호선
-            {"name": "반월당", "x": 487, "y": 388}, #1, 2호선
-            {"name": "중앙로", "x": 487, "y": 431},
-            {"name": "대구역", "x": 487, "y": 465}, #1, 대경선
-            {"name": "칠성시장", "x": 487, "y": 499},
-            {"name": "신천", "x": 494, "y": 530},
-            {"name": "동대구역", "x": 513, "y": 559}, #1, 대경선
-            {"name": "동구청", "x": 538, "y": 578},
-            {"name": "아양교", "x": 579, "y": 589},
-            {"name": "동촌", "x": 625, "y": 590},
-            {"name": "해안", "x": 662, "y": 590},
-            {"name": "방촌", "x": 697, "y": 590},
-            {"name": "용계", "x": 731, "y": 589},
-            {"name": "신기", "x": 795, "y": 620},
-            {"name": "반야월", "x": 813, "y": 647},
-            {"name": "각산", "x": 820, "y": 674},
-            {"name": "안심", "x": 820, "y": 700},
-            {"name": "대구한의대병원", "x": 820, "y": 726},
-            {"name": "부호", "x": 820, "y": 751},
-            {"name": "하양", "x": 820, "y": 777},
-            #2호선
-            {"name": "문양", "x": 75, "y": 300},
-            {"name": "다사", "x": 75, "y": 330},
-            {"name": "대실", "x": 75, "y": 359},
-            {"name": "강창", "x": 83, "y": 380},
-            {"name": "계명대", "x": 104, "y": 385},
-            {"name": "성서산업단지", "x": 136, "y": 385},
-            {"name": "이곡", "x": 169, "y": 385},
-            {"name": "용산", "x": 204, "y": 385},
-            {"name": "죽전", "x": 244, "y": 385},
-            {"name": "감삼", "x": 278, "y": 385},
-            {"name": "두류", "x": 316, "y": 385},
-            {"name": "내당", "x": 352, "y": 385},
-            {"name": "반고개", "x": 382, "y": 385},
-            {"name": "청라언덕", "x": 409, "y": 385}, #2, 3호선
-            {"name": "경대병원", "x": 555, "y": 385},
-            {"name": "대구은행", "x": 593, "y": 385},
-            {"name": "범어", "x": 631, "y": 385},
-            {"name": "수성구청", "x": 670, "y": 385},
-            {"name": "만촌", "x": 708, "y": 385},
-            {"name": "담티", "x": 747, "y": 385},
-            {"name": "연호", "x": 785, "y": 385},
-            {"name": "수성알파시티", "x": 825, "y": 410},
-            {"name": "고산", "x": 826, "y": 437},
-            {"name": "신매", "x": 825, "y": 464},
-            {"name": "사월", "x": 825, "y": 490},
-            {"name": "정평", "x": 825, "y": 517},
-            {"name": "임당", "x": 825, "y": 544},
-            {"name": "영남대", "x": 825, "y": 571},
-            #3호선
-            {"name": "용지", "x": 821, "y": 67},
-            {"name": "범물", "x": 821, "y": 99},
-            {"name": "지산", "x": 821, "y": 135},
-            {"name": "수성못", "x": 821, "y": 171},
-            {"name": "황금", "x": 807, "y": 215},
-            {"name": "어린이세상", "x": 777, "y": 245},
-            {"name": "수성구민운동장", "x": 735, "y": 260},
-            {"name": "수성시장", "x": 656, "y": 260},
-            {"name": "대봉교", "x": 578, "y": 260},
-            {"name": "건들바위", "x": 499, "y": 260},
-            {"name": "남산", "x": 413, "y": 329},
-            {"name": "서문시장", "x": 409, "y": 433},
-            {"name": "달성공원", "x": 409, "y": 485},
-            {"name": "북구청", "x": 404, "y": 523},
-            {"name": "원대", "x": 388, "y": 553},
-            {"name": "팔달시장", "x": 362, "y": 575},
-            {"name": "만평", "x": 328, "y": 588},
-            {"name": "공단", "x": 294, "y": 590},
-            {"name": "팔달", "x": 260, "y": 590},
-            {"name": "매천시장", "x": 226, "y": 590},
-            {"name": "매천", "x": 192, "y": 590},
-            {"name": "태전", "x": 158, "y": 590},
-            {"name": "구암", "x": 108, "y": 614},
-            {"name": "칠곡운암", "x": 81, "y": 654},
-            {"name": "동천", "x": 75, "y": 689},
-            {"name": "팔거", "x": 75, "y": 721},
-            {"name": "학정", "x": 75, "y": 753},
-            {"name": "칠곡경대병원", "x": 75, "y": 779},
-            #대경선
-            {"name": "구미", "x": 110, "y": 467},
-            {"name": "사곡", "x": 165, "y": 467},
-            {"name": "왜관", "x": 264, "y": 467},
-            {"name": "서대구역", "x": 366, "y": 467},
-            {"name": "경산", "x": 504, "y": 778},
+            # 1호선
+            {"name": "설화명곡", "x": 74, "y": 66, "lines": ["1호선"]},
+            {"name": "화원", "x": 74, "y": 93, "lines": ["1호선"]},
+            {"name": "대곡", "x": 74, "y": 122, "lines": ["1호선"]},
+            {"name": "진천", "x": 74, "y": 149, "lines": ["1호선"]},
+            {"name": "월배", "x": 75, "y": 178, "lines": ["1호선"]},
+            {"name": "상인", "x": 86, "y": 208, "lines": ["1호선"]},
+            {"name": "월촌", "x": 105, "y": 234, "lines": ["1호선"]},
+            {"name": "송현", "x": 130, "y": 251, "lines": ["1호선"]},
+            {"name": "서부정류장", "x": 162, "y": 259, "lines": ["1호선"]},
+            {"name": "대명", "x": 206, "y": 260, "lines": ["1호선"]},
+            {"name": "안지랑", "x": 251, "y": 260, "lines": ["1호선"]},
+            {"name": "현충로", "x": 300, "y": 260, "lines": ["1호선"]},
+            {"name": "영대병원", "x": 350, "y": 260, "lines": ["1호선"]},
+            {"name": "교대", "x": 399, "y": 260, "lines": ["1호선"]},
+            {"name": "명덕", "x": 446, "y": 281, "lines": ["1호선", "3호선"]},
+            {"name": "반월당", "x": 487, "y": 388, "lines": ["1호선", "2호선"]},
+            {"name": "중앙로", "x": 487, "y": 431, "lines": ["1호선"]},
+            {"name": "대구역", "x": 487, "y": 465, "lines": ["1호선", "대경선"]},
+            {"name": "칠성시장", "x": 487, "y": 499, "lines": ["1호선"]},
+            {"name": "신천", "x": 494, "y": 530, "lines": ["1호선"]},
+            {"name": "동대구역", "x": 513, "y": 559, "lines": ["1호선", "대경선"]},
+            {"name": "동구청", "x": 538, "y": 578, "lines": ["1호선"]},
+            {"name": "아양교", "x": 579, "y": 589, "lines": ["1호선"]},
+            {"name": "동촌", "x": 625, "y": 590, "lines": ["1호선"]},
+            {"name": "해안", "x": 662, "y": 590, "lines": ["1호선"]},
+            {"name": "방촌", "x": 697, "y": 590, "lines": ["1호선"]},
+            {"name": "용계", "x": 731, "y": 589, "lines": ["1호선"]},
+            {"name": "신기", "x": 795, "y": 620, "lines": ["1호선"]},
+            {"name": "반야월", "x": 813, "y": 647, "lines": ["1호선"]},
+            {"name": "각산", "x": 820, "y": 674, "lines": ["1호선"]},
+            {"name": "안심", "x": 820, "y": 700, "lines": ["1호선"]},
+            {"name": "대구한의대병원", "x": 820, "y": 726, "lines": ["1호선"]},
+            {"name": "부호", "x": 820, "y": 751, "lines": ["1호선"]},
+            {"name": "하양", "x": 820, "y": 777, "lines": ["1호선"]},
+            # 2호선
+            {"name": "문양", "x": 75, "y": 300, "lines": ["2호선"]},
+            {"name": "다사", "x": 75, "y": 330, "lines": ["2호선"]},
+            {"name": "대실", "x": 75, "y": 359, "lines": ["2호선"]},
+            {"name": "강창", "x": 83, "y": 380, "lines": ["2호선"]},
+            {"name": "계명대", "x": 104, "y": 385, "lines": ["2호선"]},
+            {"name": "성서산업단지", "x": 136, "y": 385, "lines": ["2호선"]},
+            {"name": "이곡", "x": 169, "y": 385, "lines": ["2호선"]},
+            {"name": "용산", "x": 204, "y": 385, "lines": ["2호선"]},
+            {"name": "죽전", "x": 244, "y": 385, "lines": ["2호선"]},
+            {"name": "감삼", "x": 278, "y": 385, "lines": ["2호선"]},
+            {"name": "두류", "x": 316, "y": 385, "lines": ["2호선"]},
+            {"name": "내당", "x": 352, "y": 385, "lines": ["2호선"]},
+            {"name": "반고개", "x": 382, "y": 385, "lines": ["2호선"]},
+            {"name": "청라언덕", "x": 409, "y": 385, "lines": ["2호선", "3호선"]},
+            {"name": "경대병원", "x": 555, "y": 385, "lines": ["2호선"]},
+            {"name": "대구은행", "x": 593, "y": 385, "lines": ["2호선"]},
+            {"name": "범어", "x": 631, "y": 385, "lines": ["2호선"]},
+            {"name": "수성구청", "x": 670, "y": 385, "lines": ["2호선"]},
+            {"name": "만촌", "x": 708, "y": 385, "lines": ["2호선"]},
+            {"name": "담티", "x": 747, "y": 385, "lines": ["2호선"]},
+            {"name": "연호", "x": 785, "y": 385, "lines": ["2호선"]},
+            {"name": "수성알파시티", "x": 825, "y": 410, "lines": ["2호선"]},
+            {"name": "고산", "x": 826, "y": 437, "lines": ["2호선"]},
+            {"name": "신매", "x": 825, "y": 464, "lines": ["2호선"]},
+            {"name": "사월", "x": 825, "y": 490, "lines": ["2호선"]},
+            {"name": "정평", "x": 825, "y": 517, "lines": ["2호선"]},
+            {"name": "임당", "x": 825, "y": 544, "lines": ["2호선"]},
+            {"name": "영남대", "x": 825, "y": 571, "lines": ["2호선"]},
+            # 3호선
+            {"name": "용지", "x": 821, "y": 67, "lines": ["3호선"]},
+            {"name": "범물", "x": 821, "y": 99, "lines": ["3호선"]},
+            {"name": "지산", "x": 821, "y": 135, "lines": ["3호선"]},
+            {"name": "수성못", "x": 821, "y": 171, "lines": ["3호선"]},
+            {"name": "황금", "x": 807, "y": 215, "lines": ["3호선"]},
+            {"name": "어린이세상", "x": 777, "y": 245, "lines": ["3호선"]},
+            {"name": "수성구민운동장", "x": 735, "y": 260, "lines": ["3호선"]},
+            {"name": "수성시장", "x": 656, "y": 260, "lines": ["3호선"]},
+            {"name": "대봉교", "x": 578, "y": 260, "lines": ["3호선"]},
+            {"name": "건들바위", "x": 499, "y": 260, "lines": ["3호선"]},
+            {"name": "남산", "x": 413, "y": 329, "lines": ["3호선"]},
+            {"name": "서문시장", "x": 409, "y": 433, "lines": ["3호선"]},
+            {"name": "달성공원", "x": 409, "y": 485, "lines": ["3호선"]},
+            {"name": "북구청", "x": 404, "y": 523, "lines": ["3호선"]},
+            {"name": "원대", "x": 388, "y": 553, "lines": ["3호선"]},
+            {"name": "팔달시장", "x": 362, "y": 575, "lines": ["3호선"]},
+            {"name": "만평", "x": 328, "y": 588, "lines": ["3호선"]},
+            {"name": "공단", "x": 294, "y": 590, "lines": ["3호선"]},
+            {"name": "팔달", "x": 260, "y": 590, "lines": ["3호선"]},
+            {"name": "매천시장", "x": 226, "y": 590, "lines": ["3호선"]},
+            {"name": "매천", "x": 192, "y": 590, "lines": ["3호선"]},
+            {"name": "태전", "x": 158, "y": 590, "lines": ["3호선"]},
+            {"name": "구암", "x": 108, "y": 614, "lines": ["3호선"]},
+            {"name": "칠곡운암", "x": 81, "y": 654, "lines": ["3호선"]},
+            {"name": "동천", "x": 75, "y": 689, "lines": ["3호선"]},
+            {"name": "팔거", "x": 75, "y": 721, "lines": ["3호선"]},
+            {"name": "학정", "x": 75, "y": 753, "lines": ["3호선"]},
+            {"name": "칠곡경대병원", "x": 75, "y": 779, "lines": ["3호선"]},
+            # 대경선
+            {"name": "구미", "x": 110, "y": 467, "lines": ["대경선"]},
+            {"name": "사곡", "x": 165, "y": 467, "lines": ["대경선"]},
+            {"name": "왜관", "x": 264, "y": 467, "lines": ["대경선"]},
+            {"name": "서대구역", "x": 366, "y": 467, "lines": ["대경선"]},
+            {"name": "경산", "x": 504, "y": 778, "lines": ["대경선"]},
         ]
         canvas = tk.Canvas(self, bg="#FFFFFF", height=960, width=540, bd=0, highlightthickness=0, relief="ridge")
         canvas.place(x=0, y=0)
@@ -182,11 +202,19 @@ class MainPage(tk.Frame):
         self.img_canvas.tag_bind(img_id, "<ButtonPress-1>", on_click)
         self.img_canvas.tag_bind(img_id, "<B1-Motion>", on_drag)
         def on_zoom(event):
-            if event.state & 0x0001:
-                if event.delta > 0:
-                    self.cur_scale *= 1.1
-                else:
-                    self.cur_scale /= 1.1
+            # ctrl키가 눌렸는지 체크 (Windows/Linux/Mac 모두 지원)
+            ctrl_pressed = (event.state & 0x4) != 0 or (event.state & 0x0004) != 0
+            if ctrl_pressed:
+                if hasattr(event, 'delta'):
+                    if event.delta > 0:
+                        self.cur_scale *= 1.1
+                    else:
+                        self.cur_scale /= 1.1
+                elif hasattr(event, 'num'):
+                    if event.num == 4:
+                        self.cur_scale *= 1.1
+                    elif event.num == 5:
+                        self.cur_scale /= 1.1
                 self.cur_scale = max(0.3, min(self.cur_scale, 3.0))
                 new_w = int(img_w * self.cur_scale)
                 new_h = int(img_h * self.cur_scale)
@@ -195,43 +223,75 @@ class MainPage(tk.Frame):
                 self.img_canvas.itemconfig(img_id, image=self.img_tk)
                 self.img_canvas.config(scrollregion=(0, 0, new_w, new_h))
                 self.img_canvas.image = self.img_tk
-        self.img_canvas.bind_all("<MouseWheel>", on_zoom)
+        # 바인딩 (OS별)
+        self.img_canvas.bind("<MouseWheel>", on_zoom)   # Windows/Mac
+        self.img_canvas.bind("<Button-4>", on_zoom)     # Linux
+        self.img_canvas.bind("<Button-5>", on_zoom)     # Linux
 
         # 좌표 출력 및 역 판정
         self.on_img_canvas_click = self.on_img_canvas_click
         self.img_canvas.bind("<Button-1>", self.on_img_canvas_click)
 
     def show_station_popup(self, canvas, x, y, station_name):
-        # 기존 팝업 제거
         if self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
             self.popup_window = None
         self.popup_canvas = canvas
-        # 팝업 프레임 생성
-        frame = tk.Frame(canvas, bg="#F8F8F8", bd=1, relief="solid")
-        btn1 = tk.Button(frame, text=f"{station_name}(역)을 출발지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_departure_and_close(station_name))
-        btn2 = tk.Button(frame, text=f"{station_name}(역)을 도착지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_arrival_and_close(station_name))
-        btn3 = tk.Button(frame, text=f"{station_name}(역) 즐겨찾기", font=("Malgun Gothic", 10), command=lambda: self.add_favorite_and_close(station_name))
-        btn1.pack(fill="x", padx=5, pady=2)
-        btn2.pack(fill="x", padx=5, pady=2)
-        btn3.pack(fill="x", padx=5, pady=2)
-        # 캔버스에 윈도우로 올림
-        self.popup_window = canvas.create_window(x, y, window=frame, anchor="nw")
-        # 바깥 클릭 시 팝업 닫기
+
+        # 원하는 팝업/배경 이미지 크기 지정
+        popup_bg_width = 220  # 원하는 가로 크기(px)
+        popup_bg_height = 120 # 원하는 세로 크기(px)
+
+        # 배경 이미지 리사이즈 및 캔버스 크기 맞춤
+        popup_bg_img = Image.open("build/images/popup-bg.png").resize((popup_bg_width, popup_bg_height))
+        self.popup_bg_img_tk = ImageTk.PhotoImage(popup_bg_img)
+        popup_canvas = tk.Canvas(canvas, width=popup_bg_width, height=popup_bg_height, highlightthickness=0, bd=0, bg='white')
+        popup_canvas.create_image(popup_bg_width//2, popup_bg_height//2, image=self.popup_bg_img_tk)
+
+        # 버튼 크기/간격/좌표 계산 (예시)
+        btn_width, btn_height = 200, 30
+        gap = 8
+        btn_count = 3
+        btn_total_height = btn_count * btn_height + (btn_count - 1) * gap
+        x_offset = (popup_bg_width - btn_width) // 2
+        y1 = (popup_bg_height - btn_total_height) // 2
+        y2 = y1 + btn_height + gap
+        y3 = y2 + btn_height + gap
+
+        btn_img = ImageTk.PhotoImage(Image.open("build/images/popup-btn.png").resize((btn_width, btn_height)))
+        self.btn_img_tk = btn_img
+        # 버튼1
+        btn1_img = popup_canvas.create_image(x_offset + btn_width//2, y1 + btn_height//2, image=self.btn_img_tk)
+        btn1_text = popup_canvas.create_text(x_offset + btn_width//2, y1 + btn_height//2, text=f"{station_name}(역)을 출발지로 설정", fill="white", font=("Malgun Gothic", 9))
+        # 버튼2
+        btn2_img = popup_canvas.create_image(x_offset + btn_width//2, y2 + btn_height//2, image=self.btn_img_tk)
+        btn2_text = popup_canvas.create_text(x_offset + btn_width//2, y2 + btn_height//2, text=f"{station_name}(역)을 도착지로 설정", fill="white", font=("Malgun Gothic", 9))
+        # 버튼3
+        btn3_img = popup_canvas.create_image(x_offset + btn_width//2, y3 + btn_height//2, image=self.btn_img_tk)
+        btn3_text = popup_canvas.create_text(x_offset + btn_width//2, y3 + btn_height//2, text=f"{station_name}(역) 즐겨찾기", fill="white", font=("Malgun Gothic", 9))
+        # 클릭 이벤트 연결
+        def btn1_cmd(event=None): self.set_departure_and_close(station_name)
+        def btn2_cmd(event=None): self.set_arrival_and_close(station_name)
+        def btn3_cmd(event=None): self.add_favorite_and_close(station_name)
+        for tag in [btn1_img, btn1_text]:
+            popup_canvas.tag_bind(tag, '<Button-1>', btn1_cmd)
+        for tag in [btn2_img, btn2_text]:
+            popup_canvas.tag_bind(tag, '<Button-1>', btn2_cmd)
+        for tag in [btn3_img, btn3_text]:
+            popup_canvas.tag_bind(tag, '<Button-1>', btn3_cmd)
+        self.popup_window = canvas.create_window(x, y, window=popup_canvas, anchor="nw", width=popup_bg_width, height=popup_bg_height)
+
         def close_popup(event=None):
             if self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
                 self.popup_canvas.delete(self.popup_window)
                 self.popup_window = None
-            # 바인딩 해제 (bind_id로)
             if hasattr(self, 'popup_bind_id') and self.popup_bind_id:
                 canvas.unbind("<Button-1>", self.popup_bind_id)
                 self.popup_bind_id = None
-            # 팝업 닫힌 후, 만약 event가 있고, 역 클릭이면 on_img_canvas_click 재호출
             if event and hasattr(event.widget, 'find_withtag'):
                 self.on_img_canvas_click(event)
-        # 바깥 클릭 바인딩(팝업이 있을 때만, bind_id 저장)
         self.popup_bind_id = canvas.bind("<Button-1>", close_popup, add='+')
-        # 버튼 클릭 시 팝업 닫기 및 동작
+
     def set_departure_and_close(self, station_name):
         if hasattr(self, 'popup_window') and self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
@@ -298,7 +358,14 @@ class MainPage(tk.Frame):
         orig_x = real_x / self.cur_scale
         orig_y = real_y / self.cur_scale
         for station in self.stations:
+            # 대구역, 동대구역은 lines를 1호선만 취급
+            if station["name"] in ["대구역", "동대구역"]:
+                station["lines"] = ["1호선"]
             if abs(orig_x - station["x"]) < 15 and abs(orig_y - station["y"]) < 15:
+                # 대경선 역 클릭 시 안내 메시지 및 클릭 막기
+                if '대경선' in station.get('lines', []):
+                    messagebox.showinfo("알림", "대경선은 업데이트 예정입니다.")
+                    return
                 # 출발/도착지 선택 모드면 기존 로직
                 if self.controller.is_selecting_departure:
                     if self.controller.arrival_station == station['name']:
@@ -529,22 +596,51 @@ class SecondPage(tk.Frame):
                 return
 
     def show_fav_popup(self, x, y, station_name, event=None):
-        # 팝업이 화면 밖으로 나가지 않도록 x좌표 보정
-        popup_width = 200
-        canvas_width = int(self.canvas['width'])
-        if x + popup_width > canvas_width:
-            x = canvas_width - popup_width
-        # 기존 팝업 제거
+        # 팝업이 화면 밖으로 나가지 않도록 x좌표 보정 및 y좌표 위로 10만큼 띄움
+        popup_bg_width = 220
+        popup_bg_height = 88
+        btn_width, btn_height = 200, 30
+        gap = 8
+        btn_count = 2
+        btn_total_height = btn_count * btn_height + (btn_count - 1) * gap
+        x_offset = (popup_bg_width - btn_width) // 2
+        y1 = (popup_bg_height - btn_total_height) // 2
+        y2 = y1 + btn_height + gap
+
+        # y좌표 위로 10만큼 이동, 최소 0 보장
+        y = max(0, y + 10)
+
+        # 배경 이미지
+        popup_bg_img = Image.open("build/images/popup-bg.png").resize((popup_bg_width, popup_bg_height))
+        self.fav_popup_bg_img_tk = ImageTk.PhotoImage(popup_bg_img)
+        popup_canvas = tk.Canvas(self.canvas, width=popup_bg_width, height=popup_bg_height, highlightthickness=0, bd=0, bg='white')
+        popup_canvas.create_image(popup_bg_width//2, popup_bg_height//2, image=self.fav_popup_bg_img_tk)
+
+        # 버튼 이미지
+        btn_img = ImageTk.PhotoImage(Image.open("build/images/popup-btn.png").resize((btn_width, btn_height)))
+        self.fav_btn_img_tk = btn_img
+        # 버튼1
+        btn1_img = popup_canvas.create_image(x_offset + btn_width//2, y1 + btn_height//2, image=self.fav_btn_img_tk)
+        btn1_text = popup_canvas.create_text(x_offset + btn_width//2, y1 + btn_height//2, text=f"{station_name}(역)을 출발지로 설정", fill="white", font=("Malgun Gothic", 9))
+        # 버튼2
+        btn2_img = popup_canvas.create_image(x_offset + btn_width//2, y2 + btn_height//2, image=self.fav_btn_img_tk)
+        btn2_text = popup_canvas.create_text(x_offset + btn_width//2, y2 + btn_height//2, text=f"{station_name}(역)을 도착지로 설정", fill="white", font=("Malgun Gothic", 9))
+
+        # 클릭 이벤트 연결
+        def btn1_cmd(event=None): self.set_departure_from_fav(station_name)
+        def btn2_cmd(event=None): self.set_arrival_from_fav(station_name)
+        for tag in [btn1_img, btn1_text]:
+            popup_canvas.tag_bind(tag, '<Button-1>', btn1_cmd)
+        for tag in [btn2_img, btn2_text]:
+            popup_canvas.tag_bind(tag, '<Button-1>', btn2_cmd)
+
+        # 기존 팝업 닫기
         if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
         self.fav_popup_canvas = self.canvas
-        frame = tk.Frame(self.canvas, bg="#F8F8F8", bd=1, relief="solid")
-        btn1 = tk.Button(frame, text=f"{station_name}(역)을 출발지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_departure_from_fav(station_name))
-        btn2 = tk.Button(frame, text=f"{station_name}(역)을 도착지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_arrival_from_fav(station_name))
-        btn1.pack(fill="x", padx=5, pady=2)
-        btn2.pack(fill="x", padx=5, pady=2)
-        self.fav_popup_window = self.canvas.create_window(x, y, window=frame, anchor="nw")
+        self.fav_popup_window = self.canvas.create_window(x, y, window=popup_canvas, anchor="nw", width=popup_bg_width, height=popup_bg_height)
+
         def close_popup(event=None):
             if self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
                 self.fav_popup_canvas.delete(self.fav_popup_window)
@@ -552,8 +648,8 @@ class SecondPage(tk.Frame):
             if hasattr(self, 'fav_popup_bind_id') and self.fav_popup_bind_id:
                 self.canvas.unbind("<Button-1>", self.fav_popup_bind_id)
                 self.fav_popup_bind_id = None
-        # 항상 on_fav_click 바인딩을 유지
-        self.canvas.bind('<Button-1>', self.on_fav_click)
+            # 즐겨찾기 클릭 바인딩 복구
+            self.canvas.bind('<Button-1>', self.on_fav_click)
         self.fav_popup_bind_id = self.canvas.bind("<Button-1>", close_popup, add='+')
 
     def set_departure_from_fav(self, station_name):
@@ -649,41 +745,431 @@ class ThirdPage(tk.Frame):
         self.canvas.tag_bind(self.arrival_text_id, '<Button-1>', go_to_main_arrival)
         self.render_favorites()
         self.canvas.bind('<Button-1>', self.on_fav_click)
-        # 아래는 기존 ThirdPage의 중단/하단 UI(경로 정보, 상세, 로고 등) 그대로 유지
-        # 경로 정보 카드
-        self.canvas.create_rectangle(20, 190, 520, 270, fill="#FFFFFF", outline="#E0E0E0", width=2)
-        self.canvas.create_text(40, 205, anchor="nw", text="오늘 오전 11:00 출발", fill="#6A66FF", font=("Malgun Gothic", 12 * -1))
-        self.canvas.create_text(40, 235, anchor="nw", text="20분", fill="#222222", font=("Malgun Gothic", 20, "bold"))
-        self.canvas.create_text(120, 240, anchor="nw", text="오전 11:07 ~ 11:27", fill="#888888", font=("Malgun Gothic", 12 * -1))
-        # 경로 상세 카드
-        self.canvas.create_rectangle(20, 290, 520, 800, fill="#FFFFFF", outline="#E0E0E0", width=2)
-        # 출발역 강조
-        self.canvas.create_oval(40, 320, 70, 350, fill="#6A66FF", outline="")
-        self.canvas.create_text(80, 325, anchor="nw", text="화원역 승차 (대곡역 방면, 빠른하차 6-2)", fill="#222222", font=("Malgun Gothic", 13 * -1))
-        # 경유역 리스트(더미)
-        stations = ["대곡역", "진천역", "월배역", "상인역", "월촌역", "송현역", "서부정류장역", "대명역", "안지랑역", "현충로역", "영대병원역"]
-        y = 360
-        for st in stations:
-            self.canvas.create_oval(52, y, 58, y+6, fill="#BBBBBB", outline="")
-            self.canvas.create_text(80, y-5, anchor="nw", text=st, fill="#666666", font=("Malgun Gothic", 12 * -1))
-            y += 32
-        # 도착역 강조
-        self.canvas.create_oval(40, y, 70, y+30, fill="#FF4B4B", outline="")
-        self.canvas.create_text(80, y+5, anchor="nw", text="교대역 하차", fill="#FF4B4B", font=("Malgun Gothic", 13, "bold"))
-        # 이동 정보
-        self.canvas.create_text(40, 790, anchor="nw", text="20분, 12개 역 이동", fill="#6A66FF", font=("Malgun Gothic", 13 * -1))
-        # 하단 로고(더미)
+        # 경로 정보 카드 배경
+        self.route_card_bg = self.canvas.create_rectangle(20, 190, 520, 270, fill="#FFFFFF", outline="", width=2)
+        # 1. 큰 사각형(경로 상세 카드) 그리기
+        self.canvas.create_rectangle(20, 290, 520, 800, fill="#FFFFFF", outline="")  # outline 없음
+
+        # 2. 해당 영역에 스크롤 가능한 Frame+Canvas 추가
+        self.detail_scroll_canvas = tk.Canvas(self, width=500, height=510, bg="#FFFFFF", bd=0, highlightthickness=0)
+        self.detail_scroll_canvas.place(x=20, y=290)
+
+        self.detail_scrollbar = tk.Scrollbar(self, orient="vertical", command=self.detail_scroll_canvas.yview)
+        self.detail_scrollbar.place(x=520, y=290, height=510)
+
+        self.detail_inner = tk.Frame(self.detail_scroll_canvas, bg="#FFFFFF")
+        self.detail_inner.bind(
+            "<Configure>",
+            lambda e: self.detail_scroll_canvas.configure(
+                scrollregion=self.detail_scroll_canvas.bbox("all")
+            )
+        )
+        self.detail_scroll_canvas.create_window((0, 0), window=self.detail_inner, anchor="nw")
+        self.detail_scroll_canvas.configure(yscrollcommand=self.detail_scrollbar.set)
+
+        # 마우스 휠 스크롤 이벤트 바인딩 (Windows/Mac/Linux 모두 지원)
+        def _on_mousewheel(event):
+            if event.num == 5 or event.delta == -120:
+                self.detail_scroll_canvas.yview_scroll(1, "units")
+            elif event.num == 4 or event.delta == 120:
+                self.detail_scroll_canvas.yview_scroll(-1, "units")
+        self.detail_scroll_canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows, Mac
+        self.detail_scroll_canvas.bind_all("<Button-4>", _on_mousewheel)    # Linux
+        self.detail_scroll_canvas.bind_all("<Button-5>", _on_mousewheel)    # Linux
+
+        # 터치(드래그) 스크롤 기능 추가
+        # (터치/드래그 스크롤 기능 완전 삭제)
+        # self._scroll_start_y = None
+        # self._scroll_start_canvas_y = None
+        # def _on_scroll_start(event):
+        #     self._scroll_start_y = event.y
+        #     self._scroll_start_canvas_y = self.detail_scroll_canvas.yview()[0]
+        # def _on_scroll_move(event):
+        #     if self._scroll_start_y is not None and self._scroll_start_canvas_y is not None:
+        #         scrollregion = self.detail_scroll_canvas.bbox("all")
+        #         if scrollregion:
+        #             total_height = scrollregion[3] - scrollregion[1]
+        #             visible_height = self.detail_scroll_canvas.winfo_height()
+        #             if total_height > visible_height:
+        #                 delta = event.y - self._scroll_start_y
+        #                 move_frac = -delta / total_height
+        #                 new_y = self._scroll_start_canvas_y + move_frac
+        #                 new_y = max(0.0, min(new_y, 1.0))
+        #                 self.detail_scroll_canvas.yview_moveto(new_y)
+        # self.detail_scroll_canvas.bind("<ButtonPress-1>", _on_scroll_start)
+        # self.detail_scroll_canvas.bind("<B1-Motion>", _on_scroll_move)
+
+        # 3. 경로 상세 정보(승차/경유/하차 등)는 반드시 self.detail_inner 위에 그려야 스크롤이 적용됨
+        # 예시:
+        # label = tk.Label(self.detail_inner, text="경유역1", ...)
+        # label.pack()
+        self.render_favorites()
+        self.canvas.bind('<Button-1>', self.on_fav_click)
+        # 하단 로고
         self.canvas.create_image(0, 914, anchor="nw", image=self.footer_img_tk)
         # 마지막에 텍스트 최신화
         self.update_departure_text()
         self.update_arrival_text()
+        
+        # 경로 계산 및 표시 초기화
+        self.route_items = []  # 경로 관련 UI 아이템들을 저장할 리스트
+        self.calculate_and_display_route()
+        self.selected_departure_time = None  # 사용자가 선택한 출발 시각
+        self.route_time_text_id = None  # 출발 시간 텍스트 id 저장
+        # 노선별 색상 매핑
+        self.line_colors = {
+            '1호선': '#E60012',  # 빨간색
+            '2호선': '#009944',  # 초록색
+            '3호선': '#FFD400',  # 노란색
+            '대경선': '#0067B3',  # 파란색
+        }
+
+    def calculate_and_display_route(self):
+        """실제 경로를 계산하고 UI에 표시"""
+        if not self.controller.departure_station or not self.controller.arrival_station:
+            return
+        try:
+            # 출발 시각 적용
+            if self.selected_departure_time:
+                departure_time = self.selected_departure_time
+            else:
+                now = datetime.now()
+                departure_time = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+            
+            # 실제 가장 빠른 열차 시간 찾기
+            actual_departure_time = self.find_earliest_train_time(departure_time)
+            
+            # 1. 경로 계산 (시간 기반)
+            total_cost, path = find_best_route(
+                self.controller.departure_station,
+                self.controller.arrival_station,
+                mode='time',
+                start_time=actual_departure_time.strftime('%H:%M:%S')
+            )
+            
+            # 2. 경로를 노선별로 분할
+            segments = split_path_by_line(path)
+            
+            # 3. 방향 정보 추론
+            direction_info = infer_direction(path)
+            
+            # 4. UI 업데이트 (실제 열차 시간 사용)
+            self.update_route_display(path, total_cost, segments, direction_info, actual_departure_time)
+            
+        except Exception as e:
+            print(f"경로 계산 오류: {e}")
+            # 오류 발생 시 기본 더미 데이터 표시
+            self.display_dummy_route()
+
+    def find_earliest_train_time(self, requested_time):
+        """요청된 시간 이후 가장 빠른 열차의 실제 출발 시간을 찾기"""
+        try:
+            from route_finder import find_best_route
+            from path_utils import infer_direction
+            from data_loader import load_line_station_map, prepare_timetable_long_format_dict
+            from timetable_query import get_available_departures
+            
+            # 먼저 경로 계산 (시간은 임시로 사용)
+            total_cost, path = find_best_route(
+                self.controller.departure_station,
+                self.controller.arrival_station,
+                mode='time'
+            )
+            
+            # 방향 정보 추론
+            direction_info = infer_direction(path)
+            
+            # 출발역이 포함된 노선과 방향 찾기
+            target_line = None
+            direction = None
+            for line, dir in direction_info.items():
+                if self.controller.departure_station in load_line_station_map()[line]:
+                    target_line = line
+                    direction = dir
+                    break
+            
+            if target_line and direction:
+                # 시각표에서 가장 빠른 열차 찾기
+                timetable_dict = prepare_timetable_long_format_dict()
+                after_time = requested_time.time()
+                
+                nearest = get_available_departures(
+                    timetable_dict,
+                    target_line,
+                    direction,
+                    self.controller.departure_station,
+                    after_time
+                )
+                
+                if not nearest.empty:
+                    # 가장 빠른 열차의 출발 시간 반환
+                    earliest_train = nearest.iloc[0]
+                    return earliest_train['시각'].replace(year=datetime.now().year, month=datetime.now().month, day=datetime.now().day)
+            
+            # 열차를 찾지 못한 경우 요청된 시간 그대로 반환
+            return requested_time
+            
+        except Exception as e:
+            print(f"가장 빠른 열차 시간 찾기 실패: {e}")
+            return requested_time
+
+    def update_route_display(self, path, total_cost, segments, direction_info, departure_time):
+        """실제 경로 정보로 UI 업데이트"""
+        # 기존 경로 관련 UI 아이템들 삭제
+        self.clear_route_display()
+        
+        # 출발 시간 텍스트
+        time_str = departure_time.strftime("오늘 %p %I:%M 출발").replace("AM", "오전").replace("PM", "오후")
+        self.route_time_text_id = self.canvas.create_text(40, 205, anchor="nw", text=time_str, fill="#6A66FF", font=("Malgun Gothic", 12 * -1), tags="route_time_text")
+        self.route_items.append(self.route_time_text_id)
+        self.canvas.tag_bind(self.route_time_text_id, '<Button-1>', self.on_time_text_click)
+        
+        # 소요 시간 (분 단위)
+        minutes = int(total_cost / 60)
+        time_y = 245
+        # 소요 시간 텍스트 먼저 그림
+        time_id = self.canvas.create_text(40, time_y, anchor="w", text=f"{minutes}분", fill="#222222", font=("Malgun Gothic", 20, "bold"))
+        self.route_items.append(time_id)
+        # 소요 시간 텍스트의 width 구하기
+        bbox = self.canvas.bbox(time_id)
+        if bbox:
+            time_text_right = bbox[2]  # 오른쪽 x좌표
+        else:
+            time_text_right = 40 + 60  # fallback
+        
+        # 시간대 텍스트는 소요 시간 텍스트 바로 오른쪽에 10px 띄워서 배치
+        arrival_time = departure_time + timedelta(seconds=total_cost)
+        time_range = f"{departure_time.strftime('%p %I:%M')} ~ {arrival_time.strftime('%p %I:%M')}"
+        time_range = time_range.replace("AM", "오전").replace("PM", "오후")
+        range_id = self.canvas.create_text(time_text_right + 10, time_y+2, anchor="w", text=time_range, fill="#888888", font=("Malgun Gothic", 12 * -1))
+        self.route_items.append(range_id)
+
+        # segments에 duration(초) 정보 추가: 전체 total_cost를 역 개수 비율로 분배
+        total_stations = sum(len(seg['stations'])-1 for seg in segments if len(seg['stations']) > 1)
+        remain = total_cost
+        for i, seg in enumerate(segments):
+            n = len(seg['stations'])-1 if len(seg['stations']) > 1 else 0
+            if total_stations > 0 and n > 0:
+                # 마지막 segment는 남은 시간 모두 할당(오차 방지)
+                if i == len(segments)-1:
+                    seg['duration'] = remain
+                else:
+                    seg['duration'] = int(total_cost * n / total_stations)
+                    remain -= seg['duration']
+            else:
+                seg['duration'] = 0
+
+        # 경로 상세 정보 업데이트 및 summary 텍스트 저장
+        summary_text = self.display_route_details(path, segments, direction_info, departure_time)
+        # summary_text가 없으면 0분, 0개 역 이동 기본값 출력
+        if not summary_text:
+            summary_text = "0분, 0개 역 이동"
+        # (self.canvas 하단 summary_id 출력 완전 삭제)
+        # summary_id = self.canvas.create_text(40, 810, anchor="nw", text=summary_text, fill="#6A66FF", font=("Malgun Gothic", 13 * -1))
+        # self.route_items.append(summary_id)
+
+    def display_route_details(self, path, segments, direction_info, departure_time):
+        """경로 상세 정보 표시 (스크롤 영역 내부에만 그리기)"""
+        from data_loader import load_line_station_map, clean_station_name
+        line_station_map = load_line_station_map()
+        # 기존 상세 정보(원, 텍스트 등) 모두 삭제
+        for widget in getattr(self, 'detail_inner_widgets', []):
+            widget.destroy()
+        self.detail_inner_widgets = []
+        # 경로 길이에 따라 캔버스 높이 계산
+        n_stations = max(len(path), 3)
+        canvas_height = 80 + 40 + 32 * (n_stations-2) + 80  # 출발+경유+도착+여유
+        # detail_inner 위에 새로운 캔버스 생성
+        self.detail_draw_canvas = tk.Canvas(self.detail_inner, width=480, height=canvas_height, bg="#FFFFFF", highlightthickness=0)
+        self.detail_draw_canvas.pack()
+        self.detail_inner_widgets.append(self.detail_draw_canvas)
+        # 역별 노선 추정 함수 (정제된 이름으로 비교)
+        def get_station_lines_and_direction(station):
+            clean_name = clean_station_name(station)
+            lines = []
+            direction = None
+            for seg in segments:
+                if clean_name in [clean_station_name(s) for s in seg['stations']]:
+                    if seg['line'] not in lines:
+                        lines.append(seg['line'])
+                    direction = seg['direction']
+            for line, stations in line_station_map.items():
+                if clean_name in [clean_station_name(s) for s in stations]:
+                    if line not in lines:
+                        lines.append(line)
+            return lines, direction
+        # 원 여러 개 그리기 함수 (출발/도착역은 크고, 중앙에 호선 번호 표시)
+        def draw_multi_circles(x, y, r, lines, show_number=False):
+            n = len(lines)
+            offset = 8 if r <= 5 else 20
+            ids = []
+            text_ids = []
+            for idx, line in enumerate(lines):
+                color = self.line_colors.get(line, '#BBBBBB')
+                cx = x + (idx - (n-1)/2)*offset
+                id_ = self.detail_draw_canvas.create_oval(cx-r, y-r, cx+r, y+r, fill=color, outline="")
+                ids.append(id_)
+                if show_number:
+                    if line == '대경선':
+                        num = 'D'
+                    else:
+                        num = ''.join(filter(str.isdigit, line))
+                    text_id = self.detail_draw_canvas.create_text(cx, y, text=num, fill="#FFFFFF", font=("Malgun Gothic", int(r*1.2), "bold"))
+                    text_ids.append(text_id)
+            return ids + text_ids
+        # 경로가 없거나 역이 2개 미만이면 summary만 반환
+        if not path or len(path) < 2:
+            return "0분, 0개 역 이동"
+        # 출발역 정보
+        start_station = path[0]
+        start_lines, start_dir = get_station_lines_and_direction(start_station)
+        start_y = 40
+        start_r = 15
+        gap_first = 12  # 출발~첫 경유 간격
+        gap_between = 28  # 경유역 간격
+        dot_r = 6
+        end_r = 15
+
+        # 출발역 원(여러 호선, 크고 숫자 표시)
+        start_circles = draw_multi_circles(35, start_y, start_r, start_lines, show_number=True)
+        direction_text = f" ({start_dir}행)" if start_dir else ""
+        start_text = f"{start_station}역 승차{direction_text}"
+        start_text_id = self.detail_draw_canvas.create_text(65, start_y-10, anchor="nw", text=start_text, fill="#222222", font=("Malgun Gothic", 13 * -1))
+
+        # 첫 경유역 y좌표: 출발역 원 아래 테두리 + gap_first
+        y = start_y + start_r + gap_first
+        prev_x, prev_y, prev_r, prev_lines = 35, start_y, start_r, start_lines
+        for i, station in enumerate(path[1:-1], 1):
+            x, y = 35, y
+            lines, _ = get_station_lines_and_direction(station)
+            # 선: 이전 원의 아래 테두리 → 현재 점의 위 테두리
+            common_lines = set(prev_lines) & set(lines)
+            if common_lines:
+                line = list(common_lines)[0]
+                color = self.line_colors.get(line, "#BBBBBB")
+                self.detail_draw_canvas.create_line(prev_x, prev_y + prev_r, x, y - dot_r, fill=color, width=5)
+            # 점(경유역)
+            dots = draw_multi_circles(x, y, dot_r, lines, show_number=False)
+            station_text = f"{station}역"
+            station_id = self.detail_draw_canvas.create_text(65, y-5, anchor="nw", text=station_text, fill="#666666", font=("Malgun Gothic", 12 * -1))
+            prev_x, prev_y, prev_r, prev_lines = x, y, dot_r, lines
+            y += gap_between
+
+        # 도착역
+        end_center_y = y + end_r
+        end_lines, _ = get_station_lines_and_direction(path[-1])
+        # 마지막 경유~도착역 선: 마지막 점의 아래 테두리 → 도착역 원의 위 테두리
+        if len(path) > 1:
+            common_lines = set(prev_lines) & set(end_lines)
+            if common_lines:
+                line = list(common_lines)[0]
+                color = self.line_colors.get(line, "#BBBBBB")
+                self.detail_draw_canvas.create_line(prev_x, prev_y + prev_r, 35, end_center_y - end_r, fill=color, width=5)
+        # 도착역 원
+        end_circles = draw_multi_circles(35, end_center_y, end_r, end_lines, show_number=True)
+        # 도착역 텍스트를 원의 중심과 수직 중앙 정렬
+        end_text_id = self.detail_draw_canvas.create_text(65, end_center_y, anchor="w", text=f"{path[-1]}역 하차", fill="#222222", font=("Malgun Gothic", 13, "bold"))
+        # summary_text(0분, 0개 역 이동 등) 정상 복구
+        minutes = int(sum(segment.get('duration', 0) for segment in segments) / 60)
+        station_count = len(path)
+        summary_text = f"{minutes}분, {station_count}개 역 이동"
+        # 기존 색상(#6A66FF)과 폰트 스타일로 detail_draw_canvas에 출력
+        summary_id = self.detail_draw_canvas.create_text(65, end_center_y + end_r + 5, anchor="nw", text=summary_text, fill="#6A66FF", font=("Malgun Gothic", 13 * -1))
+        self.route_items.extend([end_text_id, summary_id])
+
+    def clear_route_display(self):
+        """기존 경로 관련 UI 아이템들 삭제"""
+        for item in self.route_items:
+            self.canvas.delete(item)
+        self.route_items = []
+
+    def display_route_summary(self, total_cost, departure_time, path):
+        """경로 요약 정보 표시"""
+        # 출발 시간 텍스트
+        time_str = departure_time.strftime("오늘 %p %I:%M 출발").replace("AM", "오전").replace("PM", "오후")
+        time_id = self.canvas.create_text(40, 205, anchor="nw", text=time_str, 
+                                        fill="#6A66FF", font=("Malgun Gothic", 12 * -1))
+        self.route_items.append(time_id)
+        
+        # 소요 시간 (분 단위)
+        minutes = int(total_cost / 60)
+        # 카드 영역: y=190~270, 높이=80
+        # 중앙 y좌표: 190 + 40 = 230
+        time_id = self.canvas.create_text(80, 230, anchor="w", text=f"{minutes}분", 
+                                        fill="#222222", font=("Malgun Gothic", 20, "bold"))
+        self.route_items.append(time_id)
+        
+        # 도착 시간 계산 및 표시
+        arrival_time = departure_time + timedelta(seconds=total_cost)
+        time_range = f"{departure_time.strftime('%p %I:%M')} ~ {arrival_time.strftime('%p %I:%M')}"
+        time_range = time_range.replace("AM", "오전").replace("PM", "오후")
+        # 시간대 텍스트도 카드 중앙에 맞춰 y=230에 배치, x=200(왼쪽 여백)
+        range_id = self.canvas.create_text(200, 230, anchor="w", text=time_range, 
+                                         fill="#888888", font=("Malgun Gothic", 12 * -1))
+        self.route_items.append(range_id)
+
+    def display_dummy_route(self):
+        """더미 경로 정보 표시 (오류 발생 시)"""
+        # 기존 더미 데이터와 동일한 내용
+        # 경로 정보 카드
+        time_id = self.canvas.create_text(40, 205, anchor="nw", text="오늘 오전 11:00 출발", 
+                                        fill="#6A66FF", font=("Malgun Gothic", 12 * -1))
+        self.route_items.append(time_id)
+        
+        time_id = self.canvas.create_text(40, 235, anchor="nw", text="20분", 
+                                        fill="#222222", font=("Malgun Gothic", 20, "bold"))
+        self.route_items.append(time_id)
+        
+        range_id = self.canvas.create_text(120, 240, anchor="nw", text="오전 11:07 ~ 11:27", 
+                                         fill="#888888", font=("Malgun Gothic", 12 * -1))
+        self.route_items.append(range_id)
+        
+        # 경로 상세 카드
+        start_circle = self.canvas.create_oval(40, 320, 70, 350, fill="#6A66FF", outline="")
+        self.route_items.append(start_circle)
+        
+        start_text_id = self.canvas.create_text(80, 325, anchor="nw", text="화원역 승차 (대곡역 방면, 빠른하차 6-2)", 
+                                              fill="#222222", font=("Malgun Gothic", 13 * -1))
+        self.route_items.append(start_text_id)
+        
+        # 경유역 리스트(더미)
+        stations = ["대곡역", "진천역", "월배역", "상인역", "월촌역", "송현역", "서부정류장역", "대명역", "안지랑역", "현충로역", "영대병원역"]
+        y = 360
+        for st in stations:
+            dot = self.canvas.create_oval(52, y, 58, y+6, fill="#BBBBBB", outline="")
+            self.route_items.append(dot)
+            
+            station_id = self.canvas.create_text(80, y-5, anchor="nw", text=st, 
+                                               fill="#666666", font=("Malgun Gothic", 12 * -1))
+            self.route_items.append(station_id)
+            y += 32
+        
+        # 도착역 강조
+        end_circle = self.canvas.create_oval(40, y, 70, y+30, fill="#FF4B4B", outline="")
+        self.route_items.append(end_circle)
+        
+        end_text_id = self.canvas.create_text(80, y+5, anchor="nw", text="교대역 하차", 
+                                            fill="#FF4B4B", font=("Malgun Gothic", 13, "bold"))
+        self.route_items.append(end_text_id)
+        
+        # 이동 정보
+        summary_id = self.canvas.create_text(40, 790, anchor="nw", text="20분, 12개 역 이동", 
+                                           fill="#6A66FF", font=("Malgun Gothic", 13 * -1))
+        self.route_items.append(summary_id)
 
     def update_departure_text(self):
         dep = self.controller.departure_station or "화원"
         self.canvas.itemconfig(self.departure_text_id, text=f"출발지: {dep}")
+        # 출발역이 변경되면 경로 재계산
+        if self.controller.departure_station and self.controller.arrival_station:
+            self.calculate_and_display_route()
+            
     def update_arrival_text(self):
         arr = self.controller.arrival_station or "교대"
         self.canvas.itemconfig(self.arrival_text_id, text=f"도착지: {arr}")
+        # 도착역이 변경되면 경로 재계산
+        if self.controller.departure_station and self.controller.arrival_station:
+            self.calculate_and_display_route()
     def render_favorites(self):
         # 기존 즐겨찾기 아이템 삭제
         for item in getattr(self, 'fav_items', []):
@@ -692,16 +1178,16 @@ class ThirdPage(tk.Frame):
         x = 110  # '즐겨찾기' 텍스트 오른쪽
         y = 98
         self._fav_hitboxes = []  # (x1, y1, x2, y2, fav) 리스트
-        favs = self.controller.favorites if hasattr(self.controller, 'favorites') and self.controller.favorites else []
-        for fav in favs:
+        for fav in self.controller.favorites if hasattr(self.controller, 'favorites') and self.controller.favorites else []:
             text_w = len(fav) * 14
             icon_id = self.canvas.create_image(x, y+2, anchor="nw", image=self.fav_icon_img_tk)
             text_id = self.canvas.create_text(x+20, y, anchor="nw", text=fav, fill="#FFFFFF", font=("Malgun Gothic", 14 * -1))
             self.fav_items.extend([icon_id, text_id])
             self._fav_hitboxes.append((x, y, x+20+text_w, y+22, fav))
-            x += 20 + text_w + 30
+            x += 20 + text_w + 30  # 아이콘+텍스트+여백(더 넓게)
 
     def on_fav_click(self, event):
+        # 즐겨찾기 hitbox 내 클릭 시 팝업
         if not hasattr(self, '_fav_hitboxes'):
             return
         for x1, y1, x2, y2, fav in self._fav_hitboxes:
@@ -710,20 +1196,51 @@ class ThirdPage(tk.Frame):
                 return
 
     def show_fav_popup(self, x, y, station_name, event=None):
-        popup_width = 200
-        canvas_width = int(self.canvas['width'])
-        if x + popup_width > canvas_width:
-            x = canvas_width - popup_width
+        # 팝업이 화면 밖으로 나가지 않도록 x좌표 보정 및 y좌표 위로 10만큼 띄움
+        popup_bg_width = 220
+        popup_bg_height = 88
+        btn_width, btn_height = 200, 30
+        gap = 8
+        btn_count = 2
+        btn_total_height = btn_count * btn_height + (btn_count - 1) * gap
+        x_offset = (popup_bg_width - btn_width) // 2
+        y1 = (popup_bg_height - btn_total_height) // 2
+        y2 = y1 + btn_height + gap
+
+        # y좌표 위로 10만큼 이동, 최소 0 보장
+        y = max(0, y + 10)
+
+        # 배경 이미지
+        popup_bg_img = Image.open("build/images/popup-bg.png").resize((popup_bg_width, popup_bg_height))
+        self.fav_popup_bg_img_tk = ImageTk.PhotoImage(popup_bg_img)
+        popup_canvas = tk.Canvas(self.canvas, width=popup_bg_width, height=popup_bg_height, highlightthickness=0, bd=0, bg='white')
+        popup_canvas.create_image(popup_bg_width//2, popup_bg_height//2, image=self.fav_popup_bg_img_tk)
+
+        # 버튼 이미지
+        btn_img = ImageTk.PhotoImage(Image.open("build/images/popup-btn.png").resize((btn_width, btn_height)))
+        self.fav_btn_img_tk = btn_img
+        # 버튼1
+        btn1_img = popup_canvas.create_image(x_offset + btn_width//2, y1 + btn_height//2, image=self.fav_btn_img_tk)
+        btn1_text = popup_canvas.create_text(x_offset + btn_width//2, y1 + btn_height//2, text=f"{station_name}(역)을 출발지로 설정", fill="white", font=("Malgun Gothic", 9))
+        # 버튼2
+        btn2_img = popup_canvas.create_image(x_offset + btn_width//2, y2 + btn_height//2, image=self.fav_btn_img_tk)
+        btn2_text = popup_canvas.create_text(x_offset + btn_width//2, y2 + btn_height//2, text=f"{station_name}(역)을 도착지로 설정", fill="white", font=("Malgun Gothic", 9))
+
+        # 클릭 이벤트 연결
+        def btn1_cmd(event=None): self.set_departure_from_fav(station_name)
+        def btn2_cmd(event=None): self.set_arrival_from_fav(station_name)
+        for tag in [btn1_img, btn1_text]:
+            popup_canvas.tag_bind(tag, '<Button-1>', btn1_cmd)
+        for tag in [btn2_img, btn2_text]:
+            popup_canvas.tag_bind(tag, '<Button-1>', btn2_cmd)
+
+        # 기존 팝업 닫기
         if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
         self.fav_popup_canvas = self.canvas
-        frame = tk.Frame(self.canvas, bg="#F8F8F8", bd=1, relief="solid")
-        btn1 = tk.Button(frame, text=f"{station_name}(역)을 출발지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_departure_from_fav(station_name))
-        btn2 = tk.Button(frame, text=f"{station_name}(역)을 도착지로 설정", font=("Malgun Gothic", 10), command=lambda: self.set_arrival_from_fav(station_name))
-        btn1.pack(fill="x", padx=5, pady=2)
-        btn2.pack(fill="x", padx=5, pady=2)
-        self.fav_popup_window = self.canvas.create_window(x, y, window=frame, anchor="nw")
+        self.fav_popup_window = self.canvas.create_window(x, y, window=popup_canvas, anchor="nw", width=popup_bg_width, height=popup_bg_height)
+
         def close_popup(event=None):
             if self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
                 self.fav_popup_canvas.delete(self.fav_popup_window)
@@ -731,7 +1248,8 @@ class ThirdPage(tk.Frame):
             if hasattr(self, 'fav_popup_bind_id') and self.fav_popup_bind_id:
                 self.canvas.unbind("<Button-1>", self.fav_popup_bind_id)
                 self.fav_popup_bind_id = None
-        self.canvas.bind('<Button-1>', self.on_fav_click)
+            # 즐겨찾기 클릭 바인딩 복구
+            self.canvas.bind('<Button-1>', self.on_fav_click)
         self.fav_popup_bind_id = self.canvas.bind("<Button-1>", close_popup, add='+')
 
     def set_departure_from_fav(self, station_name):
@@ -745,14 +1263,15 @@ class ThirdPage(tk.Frame):
         self.controller.set_departure_station(station_name)
         self.controller.is_selecting_departure = False
         self.controller.is_selecting_arrival = False
+        # 팝업 닫기
         if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
+        # 페이지 전환 분기
         if self.controller.departure_station and self.controller.arrival_station:
             self.controller.show_frame("ThirdPage")
         else:
-            self.controller.show_frame("FourthPage")
-
+            self.controller.show_frame("SecondPage")
     def set_arrival_from_fav(self, station_name):
         # 출발지/도착지 모두 지정되어 있으면 출발지 초기화
         if self.controller.departure_station and self.controller.arrival_station:
@@ -764,18 +1283,32 @@ class ThirdPage(tk.Frame):
         self.controller.set_arrival_station(station_name)
         self.controller.is_selecting_arrival = False
         self.controller.is_selecting_departure = False
-        if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
-            self.fav_popup_canvas.delete(self.fav_popup_window)
-            self.fav_popup_window = None
+        # 출발지와 도착지가 모두 지정된 경우 ThirdPage로 이동
         if self.controller.departure_station and self.controller.arrival_station:
             self.controller.show_frame("ThirdPage")
         else:
-            self.controller.show_frame("FourthPage")
+            self.controller.show_frame("SecondPage")
 
     def close_fav_popup(self):
         if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
+
+    def on_time_text_click(self, event=None):
+        # 시간 선택 다이얼로그 표시
+        now = datetime.now()
+        default_hour = now.hour + 1 if now.hour < 23 else now.hour
+        default_minute = 0
+        hour = simpledialog.askinteger("출발 시각 선택", "출발 '시'를 입력하세요 (0~23)", initialvalue=default_hour, minvalue=0, maxvalue=23, parent=self)
+        if hour is None:
+            return
+        minute = simpledialog.askinteger("출발 시각 선택", "출발 '분'을 입력하세요 (0~59)", initialvalue=default_minute, minvalue=0, maxvalue=59, parent=self)
+        if minute is None:
+            return
+        # 선택된 시간으로 출발 시각 저장 및 경로 재계산
+        selected = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
+        self.selected_departure_time = selected
+        self.calculate_and_display_route()
 
 class FourthPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -1045,7 +1578,8 @@ class FourthPage(tk.Frame):
             if hasattr(self, 'fav_popup_bind_id') and self.fav_popup_bind_id:
                 self.canvas.unbind("<Button-1>", self.fav_popup_bind_id)
                 self.fav_popup_bind_id = None
-        self.canvas.bind('<Button-1>', self.on_fav_click)
+            # 즐겨찾기 클릭 바인딩 복구
+            self.canvas.bind('<Button-1>', self.on_fav_click)
         self.fav_popup_bind_id = self.canvas.bind("<Button-1>", close_popup, add='+')
 
     def set_departure_from_fav(self, station_name):
@@ -1130,6 +1664,8 @@ class MetroApp(tk.Tk):
         if name == "ThirdPage":
             self.frames["ThirdPage"].close_fav_popup()
             self.frames["ThirdPage"].render_favorites()
+            # ThirdPage 진입 시 경로 재계산
+            self.frames["ThirdPage"].calculate_and_display_route()
         if name == "FourthPage":
             if hasattr(self.frames["FourthPage"], "close_fav_popup"):
                 self.frames["FourthPage"].close_fav_popup()

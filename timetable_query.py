@@ -29,15 +29,30 @@ def get_available_departures(
         (timetable_df['구분'] == '출발')
     ].copy()
 
+    # 출발 시각이 하나라도 있으면, 도착 시각은 무시!
+    if not departures.empty:
+        # 주어진 시각 이후 열차만 필터링
+        if time_str:
+            if hasattr(time_str, 'hour'):
+                departures = departures[departures['시각'].dt.time >= time_str]
+            else:
+                departures = departures[departures['시각'] >= time_str]
+        return departures.sort_values(by='시각')
+
     # 출발 시각이 없고 '도착'만 있는 경우 → csv 파일 기준 기점역
-    if departures.empty:
-        possible_departure = timetable_df[
-            (timetable_df['역명'] == station) & 
-            (timetable_df['구분'] == '도착')
-        ].copy()
-        if not possible_departure.empty:
-            print(f"[⚠️ 기점역 처리] '{station}'역은 도착 시각만 존재 → 출발 시각으로 간주합니다.")
-            departures = possible_departure.copy()
+    possible_departure = timetable_df[
+        (timetable_df['역명'] == station) & 
+        (timetable_df['구분'] == '도착')
+    ].copy()
+    if not possible_departure.empty:
+        print(f"[⚠️ 기점역 처리] '{station}'역은 도착 시각만 존재 → 출발 시각으로 간주합니다.")
+        departures = possible_departure.copy()
+        if time_str:
+            if hasattr(time_str, 'hour'):
+                departures = departures[departures['시각'].dt.time >= time_str]
+            else:
+                departures = departures[departures['시각'] >= time_str]
+        return departures.sort_values(by='시각')
 
     # 종점역의 경우 출발 시각이 없고 이전역 도착 시각으로 대체
     if departures.empty and prev_station:
@@ -48,10 +63,12 @@ def get_available_departures(
         if not arrivals_at_prev.empty:
             print(f"[⚠️ 종점역 처리] '{station}'역의 출발 시각이 없어서 이전역('{prev_station}') 도착 시각을 대체합니다.")
             departures = arrivals_at_prev.copy()
-
-    # 주어진 시각 이후 열차만 필터링
-    if time_str:
-        departures = departures[departures['시각'] >= time_str]
+            if time_str:
+                if hasattr(time_str, 'hour'):
+                    departures = departures[departures['시각'].dt.time >= time_str]
+                else:
+                    departures = departures[departures['시각'] >= time_str]
+            return departures.sort_values(by='시각')
 
     # 시각 기준 정렬
     return departures.sort_values(by='시각')
