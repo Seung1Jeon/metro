@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 
 IMG_FONT_PATH = "C:\\Windows\\Fonts\\malgun.ttf"
 
+# MainPage: 메인 노선도 및 역 선택, 팝업, 즐겨찾기 추가 등 메인 인터랙션 담당
 class MainPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -232,6 +233,7 @@ class MainPage(tk.Frame):
         self.on_img_canvas_click = self.on_img_canvas_click
         self.img_canvas.bind("<Button-1>", self.on_img_canvas_click)
 
+    # 역 클릭 시 팝업(출발/도착/즐겨찾기) 표시
     def show_station_popup(self, canvas, x, y, station_name):
         if self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
@@ -292,6 +294,7 @@ class MainPage(tk.Frame):
                 self.on_img_canvas_click(event)
         self.popup_bind_id = canvas.bind("<Button-1>", close_popup, add='+')
 
+    # 출발지 설정 및 팝업 닫기
     def set_departure_and_close(self, station_name):
         if hasattr(self, 'popup_window') and self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
@@ -311,6 +314,7 @@ class MainPage(tk.Frame):
             return
         self.controller.show_frame("SecondPage")
 
+    # 도착지 설정 및 팝업 닫기
     def set_arrival_and_close(self, station_name):
         if hasattr(self, 'popup_window') and self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
@@ -329,6 +333,7 @@ class MainPage(tk.Frame):
         if self.controller.departure_station and self.controller.arrival_station:
             return
         self.controller.show_frame("SecondPage")
+    # 즐겨찾기 추가 및 팝업 닫기
     def add_favorite_and_close(self, station_name):
         if hasattr(self, 'popup_window') and self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
@@ -342,6 +347,7 @@ class MainPage(tk.Frame):
             favs.pop()
         self.controller.frames["SecondPage"].render_favorites()
 
+    # 팝업 상태 초기화
     def reset_popup_state(self):
         if hasattr(self, 'popup_window') and self.popup_window and hasattr(self, 'popup_canvas') and self.popup_canvas:
             self.popup_canvas.delete(self.popup_window)
@@ -352,6 +358,7 @@ class MainPage(tk.Frame):
         self.popup_canvas = None
         self.popup_bind_id = None
 
+    # 노선도에서 역 클릭 시 동작(팝업/선택/경고)
     def on_img_canvas_click(self, event):
         real_x = event.widget.canvasx(event.x)
         real_y = event.widget.canvasy(event.y)
@@ -396,6 +403,7 @@ class MainPage(tk.Frame):
             self.popup_canvas.delete(self.popup_window)
             self.popup_window = None
 
+    # 역 이름으로 노선도 확대 및 하이라이트
     def focus_station_by_name(self, name):
         # 해당 역 좌표로 이동 및 확대, 빨간 원 표시
         for st in self.stations:
@@ -431,6 +439,7 @@ class MainPage(tk.Frame):
                 )
                 break
 
+# SecondPage: 출발/도착지 선택, 즐겨찾기, 최근검색 관리 및 표시
 class SecondPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -497,6 +506,7 @@ class SecondPage(tk.Frame):
         # 즐겨찾기 클릭 판정용 바인딩
         self.canvas.bind('<Button-1>', self.on_fav_click)
 
+    # 최근검색 추가
     def add_recent_search(self, dep, arr):
         if not dep or not arr:
             return
@@ -506,6 +516,7 @@ class SecondPage(tk.Frame):
         self.recent_searches.insert(0, pair)
         self.render_recent_searches()
 
+    # 최근검색 리스트 렌더링
     def render_recent_searches(self):
         # 기존 아이템 삭제
         for item in getattr(self, 'recent_items', []):
@@ -544,10 +555,12 @@ class SecondPage(tk.Frame):
             self.history_delete_id = self.canvas.create_text(229.0, y, anchor="nw", text="히스토리 삭제", fill="#6A66FF", font=("Malgun Gothic", 14 * -1))
             self.canvas.tag_bind(self.history_delete_id, '<Button-1>', self.clear_recent_searches)
 
+    # 최근검색 전체 삭제
     def clear_recent_searches(self, event=None):
         self.recent_searches = []
         self.render_recent_searches()
 
+    # 출발지 텍스트 갱신 및 상태 전환
     def update_departure_text(self):
         dep = self.controller.departure_station
         if dep:
@@ -559,6 +572,7 @@ class SecondPage(tk.Frame):
             self.add_recent_search(dep, arr)
             self.controller.show_frame("ThirdPage")
 
+    # 도착지 텍스트 갱신 및 상태 전환
     def update_arrival_text(self):
         arr = self.controller.arrival_station
         if arr:
@@ -570,6 +584,7 @@ class SecondPage(tk.Frame):
             self.add_recent_search(dep, arr)
             self.controller.show_frame("ThirdPage")
 
+    # 즐겨찾기 렌더링
     def render_favorites(self):
         # 기존 즐겨찾기 아이템 삭제
         for item in getattr(self, 'fav_items', []):
@@ -586,6 +601,7 @@ class SecondPage(tk.Frame):
             self._fav_hitboxes.append((x, y, x+20+text_w, y+22, fav))
             x += 20 + text_w + 30  # 아이콘+텍스트+여백(더 넓게)
 
+    # 즐겨찾기 클릭 판정 및 팝업
     def on_fav_click(self, event):
         # 즐겨찾기 hitbox 내 클릭 시 팝업
         if not hasattr(self, '_fav_hitboxes'):
@@ -595,6 +611,7 @@ class SecondPage(tk.Frame):
                 self.show_fav_popup(x1+20, y1+24, fav)
                 return
 
+    # 즐겨찾기 팝업 표시
     def show_fav_popup(self, x, y, station_name, event=None):
         # 팝업이 화면 밖으로 나가지 않도록 x좌표 보정 및 y좌표 위로 10만큼 띄움
         popup_bg_width = 220
@@ -652,6 +669,7 @@ class SecondPage(tk.Frame):
             self.canvas.bind('<Button-1>', self.on_fav_click)
         self.fav_popup_bind_id = self.canvas.bind("<Button-1>", close_popup, add='+')
 
+    # 즐겨찾기에서 출발지 설정
     def set_departure_from_fav(self, station_name):
         # 출발지/도착지 모두 지정되어 있으면 도착지 초기화
         if self.controller.departure_station and self.controller.arrival_station:
@@ -672,6 +690,7 @@ class SecondPage(tk.Frame):
             self.controller.show_frame("ThirdPage")
         else:
             self.controller.show_frame("SecondPage")
+    # 즐겨찾기에서 도착지 설정
     def set_arrival_from_fav(self, station_name):
         # 출발지/도착지 모두 지정되어 있으면 출발지 초기화
         if self.controller.departure_station and self.controller.arrival_station:
@@ -689,11 +708,13 @@ class SecondPage(tk.Frame):
         else:
             self.controller.show_frame("SecondPage")
 
+    # 즐겨찾기 팝업 닫기
     def close_fav_popup(self):
         if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
 
+# ThirdPage: 경로 결과, 소요시간, 상세 경로, 즐겨찾기 등 표시 및 경로 재계산
 class ThirdPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -824,6 +845,7 @@ class ThirdPage(tk.Frame):
             '대경선': '#0067B3',  # 파란색
         }
 
+    # 경로 계산 및 UI 표시
     def calculate_and_display_route(self):
         """실제 경로를 계산하고 UI에 표시"""
         if not self.controller.departure_station or not self.controller.arrival_station:
@@ -861,6 +883,7 @@ class ThirdPage(tk.Frame):
             # 오류 발생 시 기본 더미 데이터 표시
             self.display_dummy_route()
 
+    # 요청 시각 이후 가장 빠른 열차 시간 반환
     def find_earliest_train_time(self, requested_time):
         """요청된 시간 이후 가장 빠른 열차의 실제 출발 시간을 찾기"""
         try:
@@ -913,6 +936,7 @@ class ThirdPage(tk.Frame):
             print(f"가장 빠른 열차 시간 찾기 실패: {e}")
             return requested_time
 
+    # 경로 정보로 UI 업데이트
     def update_route_display(self, path, total_cost, segments, direction_info, departure_time):
         """실제 경로 정보로 UI 업데이트"""
         # 기존 경로 관련 UI 아이템들 삭제
@@ -968,6 +992,7 @@ class ThirdPage(tk.Frame):
         # summary_id = self.canvas.create_text(40, 810, anchor="nw", text=summary_text, fill="#6A66FF", font=("Malgun Gothic", 13 * -1))
         # self.route_items.append(summary_id)
 
+    # 경로 상세 정보(역별, 노선별) 표시
     def display_route_details(self, path, segments, direction_info, departure_time):
         """경로 상세 정보 표시 (스크롤 영역 내부에만 그리기)"""
         from data_loader import load_line_station_map, clean_station_name
@@ -1078,12 +1103,14 @@ class ThirdPage(tk.Frame):
         summary_id = self.detail_draw_canvas.create_text(65, end_center_y + end_r + 5, anchor="nw", text=summary_text, fill="#6A66FF", font=("Malgun Gothic", 13 * -1))
         self.route_items.extend([end_text_id, summary_id])
 
+    # 기존 경로 UI 삭제
     def clear_route_display(self):
         """기존 경로 관련 UI 아이템들 삭제"""
         for item in self.route_items:
             self.canvas.delete(item)
         self.route_items = []
 
+    # 경로 요약 정보 표시
     def display_route_summary(self, total_cost, departure_time, path):
         """경로 요약 정보 표시"""
         # 출발 시간 텍스트
@@ -1109,6 +1136,7 @@ class ThirdPage(tk.Frame):
                                          fill="#888888", font=("Malgun Gothic", 12 * -1))
         self.route_items.append(range_id)
 
+    # 오류 시 더미 경로 표시
     def display_dummy_route(self):
         """더미 경로 정보 표시 (오류 발생 시)"""
         # 기존 더미 데이터와 동일한 내용
@@ -1158,6 +1186,7 @@ class ThirdPage(tk.Frame):
                                            fill="#6A66FF", font=("Malgun Gothic", 13 * -1))
         self.route_items.append(summary_id)
 
+    # 출발지 텍스트 갱신 및 경로 재계산
     def update_departure_text(self):
         dep = self.controller.departure_station or "화원"
         self.canvas.itemconfig(self.departure_text_id, text=f"출발지: {dep}")
@@ -1165,12 +1194,14 @@ class ThirdPage(tk.Frame):
         if self.controller.departure_station and self.controller.arrival_station:
             self.calculate_and_display_route()
             
+    # 도착지 텍스트 갱신 및 경로 재계산
     def update_arrival_text(self):
         arr = self.controller.arrival_station or "교대"
         self.canvas.itemconfig(self.arrival_text_id, text=f"도착지: {arr}")
         # 도착역이 변경되면 경로 재계산
         if self.controller.departure_station and self.controller.arrival_station:
             self.calculate_and_display_route()
+    # 즐겨찾기 렌더링
     def render_favorites(self):
         # 기존 즐겨찾기 아이템 삭제
         for item in getattr(self, 'fav_items', []):
@@ -1187,6 +1218,7 @@ class ThirdPage(tk.Frame):
             self._fav_hitboxes.append((x, y, x+20+text_w, y+22, fav))
             x += 20 + text_w + 30  # 아이콘+텍스트+여백(더 넓게)
 
+    # 즐겨찾기 클릭 판정 및 팝업
     def on_fav_click(self, event):
         # 즐겨찾기 hitbox 내 클릭 시 팝업
         if not hasattr(self, '_fav_hitboxes'):
@@ -1196,6 +1228,7 @@ class ThirdPage(tk.Frame):
                 self.show_fav_popup(x1+20, y1+24, fav)
                 return
 
+    # 즐겨찾기 팝업 표시
     def show_fav_popup(self, x, y, station_name, event=None):
         # 팝업이 화면 밖으로 나가지 않도록 x좌표 보정 및 y좌표 위로 10만큼 띄움
         popup_bg_width = 220
@@ -1253,6 +1286,7 @@ class ThirdPage(tk.Frame):
             self.canvas.bind('<Button-1>', self.on_fav_click)
         self.fav_popup_bind_id = self.canvas.bind("<Button-1>", close_popup, add='+')
 
+    # 즐겨찾기에서 출발지 설정
     def set_departure_from_fav(self, station_name):
         # 출발지/도착지 모두 지정되어 있으면 도착지 초기화
         if self.controller.departure_station and self.controller.arrival_station:
@@ -1273,6 +1307,7 @@ class ThirdPage(tk.Frame):
             self.controller.show_frame("ThirdPage")
         else:
             self.controller.show_frame("SecondPage")
+    # 즐겨찾기에서 도착지 설정
     def set_arrival_from_fav(self, station_name):
         # 출발지/도착지 모두 지정되어 있으면 출발지 초기화
         if self.controller.departure_station and self.controller.arrival_station:
@@ -1290,11 +1325,13 @@ class ThirdPage(tk.Frame):
         else:
             self.controller.show_frame("SecondPage")
 
+    # 즐겨찾기 팝업 닫기
     def close_fav_popup(self):
         if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
 
+    # 출발 시간 텍스트 클릭 시 시간 선택 다이얼로그
     def on_time_text_click(self, event=None):
         # 시간 선택 다이얼로그 표시
         now = datetime.now()
@@ -1311,6 +1348,7 @@ class ThirdPage(tk.Frame):
         self.selected_departure_time = selected
         self.calculate_and_display_route()
 
+# FourthPage: 역 검색, 즐겨찾기, 최근검색, 검색창 및 후보 안내 UI 담당
 class FourthPage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
@@ -1375,6 +1413,7 @@ class FourthPage(tk.Frame):
         self.canvas.bind('<Button-1>', self.on_fav_click)
         # 최근검색 리스트는 별도 구현(아래 메서드 참고)
 
+    # 검색창 입력 시 후보 안내/리스트 표시
     def on_search_typing(self, event):
         query = self.search_entry.get().strip()
         # 2글자 미만이면 안내문구를 삭제하지 않고 그대로 둔다
@@ -1431,6 +1470,7 @@ class FourthPage(tk.Frame):
             self.canvas.tag_bind(cand_id, '<Button-1>', on_cand_click)
             y += 28
 
+    # 최근검색 렌더링
     def render_recent_searches(self):
         # 기존 아이템 삭제
         if hasattr(self, 'recent_items'):
@@ -1458,10 +1498,12 @@ class FourthPage(tk.Frame):
             self.history_delete_id = self.canvas.create_text(229.0, y, anchor="nw", text="히스토리 삭제", fill="#6A66FF", font=("Malgun Gothic", 14 * -1))
             self.canvas.tag_bind(self.history_delete_id, '<Button-1>', self.clear_recent_searches)
 
+    # 최근검색 전체 삭제
     def clear_recent_searches(self, event=None):
         self.recent_searches = []
         self.render_recent_searches()
 
+    # 검색창 엔터 시 후보 안내/리스트 표시
     def on_search_enter(self, event):
         query = self.search_entry.get().strip()
         if not query or query == "전철역 검색":
@@ -1522,6 +1564,7 @@ class FourthPage(tk.Frame):
             self.canvas.tag_bind(cand_id, '<Button-1>', on_cand_click)
             y += 28
 
+    # 즐겨찾기 렌더링
     def render_favorites(self):
         # 기존 즐겨찾기 아이템 삭제
         for item in getattr(self, 'fav_items', []):
@@ -1538,6 +1581,7 @@ class FourthPage(tk.Frame):
             self._fav_hitboxes.append((x, y, x+20+text_w, y+22, fav))
             x += 20 + text_w + 30
 
+    # 즐겨찾기 클릭 시 해당 역으로 이동 및 최근검색 추가
     def on_fav_click(self, event):
         # 즐겨찾기 hitbox 내 클릭 시 해당 역으로 이동(검색과 동일하게) + 최근검색에 추가
         if not hasattr(self, '_fav_hitboxes'):
@@ -1557,6 +1601,7 @@ class FourthPage(tk.Frame):
                 self.controller.frames["MainPage"].focus_station_by_name(fav)
                 return
 
+    # 즐겨찾기 팝업 표시
     def show_fav_popup(self, x, y, station_name, event=None):
         popup_width = 200
         canvas_width = int(self.canvas['width'])
@@ -1583,6 +1628,7 @@ class FourthPage(tk.Frame):
             self.canvas.bind('<Button-1>', self.on_fav_click)
         self.fav_popup_bind_id = self.canvas.bind("<Button-1>", close_popup, add='+')
 
+    # 즐겨찾기에서 출발지 설정
     def set_departure_from_fav(self, station_name):
         if self.controller.departure_station and self.controller.arrival_station:
             self.controller.set_arrival_station(None)
@@ -1600,6 +1646,7 @@ class FourthPage(tk.Frame):
         else:
             self.controller.show_frame("FourthPage")
 
+    # 즐겨찾기에서 도착지 설정
     def set_arrival_from_fav(self, station_name):
         if self.controller.departure_station and self.controller.arrival_station:
             self.controller.set_departure_station(None)
@@ -1617,11 +1664,13 @@ class FourthPage(tk.Frame):
         else:
             self.controller.show_frame("FourthPage")
 
+    # 즐겨찾기 팝업 닫기
     def close_fav_popup(self):
         if hasattr(self, 'fav_popup_window') and self.fav_popup_window and hasattr(self, 'fav_popup_canvas') and self.fav_popup_canvas:
             self.fav_popup_canvas.delete(self.fav_popup_window)
             self.fav_popup_window = None
 
+    # 검색창/후보 안내 UI 초기화
     def reset_search_ui(self):
         # 검색창 완전히 비우기
         if hasattr(self, 'search_entry'):
@@ -1633,6 +1682,7 @@ class FourthPage(tk.Frame):
                 self.canvas.delete(item)
             self.suggestion_items = []
 
+# MetroApp: 전체 앱 프레임 관리, 페이지 전환, 출발/도착지/즐겨찾기 상태 관리
 class MetroApp(tk.Tk):
     def __init__(self):
         super().__init__()
